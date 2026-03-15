@@ -1,23 +1,31 @@
-import { clsx } from 'clsx'
+const getGradient = (score: number) => {
+  if (score < 40) return 'linear-gradient(90deg, #3b82f6, #06b6d4)'
+  if (score < 70) return 'linear-gradient(90deg, #f97316, #eab308)'
+  return 'linear-gradient(90deg, #a855f7, #ec4899)'
+}
 
-const getColor = (score: number) => {
-  if (score < 40) return 'from-blue-500 to-cyan-400'
-  if (score < 70) return 'from-orange-500 to-yellow-400'
-  return 'from-purple-500 to-pink-400'
+const getGlow = (score: number) => {
+  if (score < 40) return 'rgba(59,130,246,0.4)'
+  if (score < 70) return 'rgba(249,115,22,0.4)'
+  return 'rgba(168,85,247,0.4)'
 }
 
 export const TVSBar = ({ score }: { score: number }) => {
   const pct = Math.min(Math.max(score, 0), 100)
   return (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">TVS</span>
-        <span className="text-sm font-bold text-white">{Math.round(pct)}</span>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-[9px] text-slate-600 uppercase tracking-widest font-bold">Velocity Score</span>
+        <span className="text-sm font-bold text-white tabular-nums">{Math.round(pct)}</span>
       </div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
         <div
-          className={clsx('h-full rounded-full bg-gradient-to-r transition-all duration-700', getColor(pct))}
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full transition-all duration-1000"
+          style={{
+            width: `${pct}%`,
+            background: getGradient(pct),
+            boxShadow: `0 0 8px ${getGlow(pct)}`,
+          }}
         />
       </div>
     </div>

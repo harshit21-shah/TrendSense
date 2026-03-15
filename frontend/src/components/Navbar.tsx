@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Search, RefreshCw, Zap, LayoutDashboard, Clock, FileText, MessageSquare, Bookmark } from 'lucide-react'
+import { Search, RefreshCw, Zap, LayoutDashboard, Clock, FileText, MessageSquare, Bookmark, Activity } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { triggerPipeline } from '../lib/api'
@@ -16,95 +16,112 @@ const NAV = [
 
 export function Navbar() {
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const navigate = useNavigate()
-  const { setSearchQuery } = useStore()
+  const { setSearchQuery, bookmarks } = useStore()
   const qc = useQueryClient()
 
   const { mutate: runPipeline, isPending } = useMutation({
     mutationFn: triggerPipeline,
-    onSuccess: () => {
-      setTimeout(() => qc.invalidateQueries({ queryKey: ['trends'] }), 2000)
-    },
+    onSuccess: () => setTimeout(() => qc.invalidateQueries({ queryKey: ['trends'] }), 2000),
   })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setSearchQuery(search)
     navigate('/')
+    setSearchOpen(false)
   }
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#080b10]/90 backdrop-blur-xl border-b border-white/[0.06]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-4">
+    <nav className="sticky top-0 z-50 border-b border-white/[0.06]" style={{ background: 'rgba(5,7,13,0.85)', backdropFilter: 'blur(20px)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
         {/* Logo */}
-        <NavLink to="/" className="flex items-center gap-2 shrink-0 mr-2">
-          <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Zap size={14} className="text-white" />
+        <NavLink to="/" className="flex items-center gap-2.5 shrink-0 mr-1 group">
+          <div className="relative w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            <Zap size={15} className="text-white" fill="white" />
+            <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'linear-gradient(135deg, #818cf8, #a78bfa)', boxShadow: '0 0 20px rgba(99,102,241,0.5)' }} />
           </div>
-          <span className="text-white font-bold text-base tracking-tight hidden sm:block">TrendSense</span>
+          <div className="hidden sm:block">
+            <span className="text-white font-bold text-sm tracking-tight">TrendSense</span>
+            <div className="flex items-center gap-1 -mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
+              <span className="text-[9px] text-slate-600 font-medium uppercase tracking-widest">Live</span>
+            </div>
+          </div>
         </NavLink>
 
         {/* Nav links */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-0.5 flex-1">
           {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                  isActive
-                    ? 'bg-indigo-500/10 text-indigo-400'
-                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
-                )
-              }
+            <NavLink key={to} to={to} end={to === '/'}
+              className={({ isActive }) => clsx(
+                'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+                isActive ? 'text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
+              )}
             >
-              <Icon size={13} />
-              {label}
+              {({ isActive }) => (
+                <>
+                  {isActive && <div className="absolute inset-0 rounded-lg" style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }} />}
+                  <Icon size={13} className={isActive ? 'text-indigo-400' : ''} />
+                  <span className="relative">{label}</span>
+                  {label === 'Saved' && bookmarks.length > 0 && (
+                    <span className="relative ml-0.5 bg-indigo-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      {bookmarks.length}
+                    </span>
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </div>
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-xs ml-auto">
+        <form onSubmit={handleSearch} className={clsx('transition-all duration-300', searchOpen ? 'flex-1 max-w-sm' : 'w-auto')}>
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => !search && setSearchOpen(false)}
               placeholder="Search trends..."
-              className="w-full bg-white/[0.04] border border-white/[0.06] rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
+              className="w-full rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-300 placeholder-slate-600 focus:outline-none transition-all"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
             />
           </div>
         </form>
 
-        {/* Run pipeline */}
-        <button
-          onClick={() => runPipeline()}
-          disabled={isPending}
-          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 shrink-0"
-        >
-          <RefreshCw size={12} className={isPending ? 'animate-spin' : ''} />
-          <span className="hidden sm:block">{isPending ? 'Running...' : 'Run Pipeline'}</span>
-        </button>
+        {/* Pipeline status + button */}
+        <div className="flex items-center gap-2 shrink-0">
+          {isPending && (
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-indigo-400">
+              <Activity size={12} className="animate-pulse" />
+              <span>Analyzing...</span>
+            </div>
+          )}
+          <button
+            onClick={() => runPipeline()}
+            disabled={isPending}
+            className="flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 0 20px rgba(99,102,241,0.3)' }}
+          >
+            <RefreshCw size={12} className={isPending ? 'animate-spin' : ''} />
+            <span className="hidden sm:block">{isPending ? 'Running...' : 'Run Pipeline'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Mobile nav */}
-      <div className="md:hidden flex border-t border-white/[0.04] overflow-x-auto">
+      <div className="md:hidden flex border-t border-white/[0.04]">
         {NAV.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              clsx(
-                'flex flex-col items-center gap-0.5 px-4 py-2 text-[10px] font-semibold whitespace-nowrap flex-1 transition-colors',
-                isActive ? 'text-indigo-400 border-b border-indigo-500' : 'text-slate-600'
-              )
-            }
+          <NavLink key={to} to={to} end={to === '/'}
+            className={({ isActive }) => clsx(
+              'flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium flex-1 transition-colors',
+              isActive ? 'text-indigo-400' : 'text-slate-600'
+            )}
           >
-            <Icon size={14} />
+            <Icon size={15} />
             {label}
           </NavLink>
         ))}

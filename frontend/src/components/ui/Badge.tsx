@@ -1,33 +1,41 @@
-import { type ReactNode } from 'react'
 import { clsx } from 'clsx'
 
-const STAGE_STYLES: Record<string, string> = {
-  emerging: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-  rising: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-  mainstream: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
+const STAGE: Record<string, { bg: string; text: string; dot: string }> = {
+  emerging: { bg: 'rgba(59,130,246,0.1)', text: '#60a5fa', dot: '#3b82f6' },
+  rising:   { bg: 'rgba(249,115,22,0.1)', text: '#fb923c', dot: '#f97316' },
+  mainstream: { bg: 'rgba(168,85,247,0.1)', text: '#c084fc', dot: '#a855f7' },
 }
 
-const DOMAIN_STYLES: Record<string, string> = {
-  AI: 'bg-violet-500/10 text-violet-400 border border-violet-500/20',
-  Fintech: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-  Health: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-  Crypto: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-  Climate: 'bg-green-500/10 text-green-400 border border-green-500/20',
-  Other: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+const DOMAIN: Record<string, { bg: string; text: string }> = {
+  AI:      { bg: 'rgba(99,102,241,0.12)', text: '#818cf8' },
+  Fintech: { bg: 'rgba(16,185,129,0.12)', text: '#34d399' },
+  Health:  { bg: 'rgba(244,63,94,0.12)',  text: '#fb7185' },
+  Crypto:  { bg: 'rgba(234,179,8,0.12)',  text: '#facc15' },
+  Climate: { bg: 'rgba(34,197,94,0.12)',  text: '#4ade80' },
+  Other:   { bg: 'rgba(100,116,139,0.12)', text: '#94a3b8' },
 }
 
-export const StageBadge = ({ stage }: { stage: string }) => (
-  <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest', STAGE_STYLES[stage?.toLowerCase()] ?? STAGE_STYLES.emerging)}>
-    {stage}
-  </span>
-)
+export const StageBadge = ({ stage }: { stage: string }) => {
+  const s = STAGE[stage?.toLowerCase()] ?? STAGE.emerging
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+      style={{ background: s.bg, color: s.text, border: `1px solid ${s.dot}30` }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+      {stage}
+    </span>
+  )
+}
 
-export const DomainBadge = ({ domain }: { domain: string }) => (
-  <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider', DOMAIN_STYLES[domain] ?? DOMAIN_STYLES.Other)}>
-    {domain}
-  </span>
-)
+export const DomainBadge = ({ domain }: { domain: string }) => {
+  const d = DOMAIN[domain] ?? DOMAIN.Other
+  return (
+    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+      style={{ background: d.bg, color: d.text }}>
+      {domain}
+    </span>
+  )
+}
 
-export const Badge = ({ children, className }: { children: ReactNode; className?: string }) => (
+export const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', className)}>{children}</span>
 )

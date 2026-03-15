@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, TrendingUp, BarChart2, Layers } from 'lucide-react'
+import { Zap, TrendingUp, BarChart2, Layers, ArrowUpRight } from 'lucide-react'
 import { useTrends, useDomains } from '../hooks/useTrends'
 import { TrendCard } from '../components/TrendCard'
 import { TrendingTicker } from '../components/TrendingTicker'
@@ -11,17 +11,27 @@ import type { Trend } from '../types'
 
 const STAGES = ['All', 'Emerging', 'Rising', 'Mainstream']
 
-const STAT = ({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) => (
-  <div className="bg-[#0d1117] border border-white/[0.06] rounded-xl p-4 flex items-center gap-3">
-    <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center', color)}>
-      {icon}
+function StatCard({ icon, label, value, sub, color }: {
+  icon: React.ReactNode; label: string; value: string | number; sub?: string; color: string
+}) {
+  return (
+    <div className="relative rounded-2xl p-4 overflow-hidden group cursor-default"
+      style={{ background: '#0c0f1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ background: `radial-gradient(circle at 50% 0%, ${color}08, transparent 70%)` }} />
+      <div className="relative flex items-start justify-between">
+        <div>
+          <div className="text-2xl font-bold text-white tabular-nums">{value}</div>
+          <div className="text-xs text-slate-600 mt-0.5 font-medium">{label}</div>
+          {sub && <div className="text-[10px] mt-1 font-semibold" style={{ color }}>{sub}</div>}
+        </div>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+          {icon}
+        </div>
+      </div>
     </div>
-    <div>
-      <div className="text-white font-bold text-xl leading-none">{value}</div>
-      <div className="text-slate-500 text-xs mt-0.5">{label}</div>
-    </div>
-  </div>
-)
+  )
+}
 
 export function Dashboard() {
   const { activeDomain, activeStage, searchQuery, setActiveDomain, setActiveStage } = useStore()
@@ -36,95 +46,128 @@ export function Dashboard() {
   const filtered = useMemo(() => {
     if (!searchQuery) return trends as Trend[]
     const q = searchQuery.toLowerCase()
-    return (trends as Trend[]).filter(
-      (t) => t.title.toLowerCase().includes(q) || t.summary?.toLowerCase().includes(q) || t.domain?.toLowerCase().includes(q)
+    return (trends as Trend[]).filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      t.summary?.toLowerCase().includes(q) ||
+      t.domain?.toLowerCase().includes(q)
     )
   }, [trends, searchQuery])
 
   const stats = useMemo(() => {
     const t = trends as Trend[]
+    const avgTvs = t.length ? t.reduce((a, b) => a + (b.velocity_score ?? b.tvs_score ?? 0), 0) / t.length : 0
+    const topTrend = t[0]
     return {
       total: t.length,
-      emerging: t.filter((x) => x.stage?.toLowerCase() === 'emerging').length,
-      rising: t.filter((x) => x.stage?.toLowerCase() === 'rising').length,
-      avgTvs: t.length ? Math.round(t.reduce((a, b) => a + (b.velocity_score ?? b.tvs_score ?? 0), 0) / t.length) : 0,
+      emerging: t.filter(x => x.stage?.toLowerCase() === 'emerging').length,
+      rising: t.filter(x => x.stage?.toLowerCase() === 'rising').length,
+      avgTvs: Math.round(avgTvs),
+      topScore: topTrend ? Math.round(topTrend.velocity_score ?? topTrend.tvs_score ?? 0) : 0,
     }
   }, [trends])
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Hero */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1">
-          Emerging Intelligence
-        </h1>
-        <p className="text-slate-500 text-sm">
-          Multi-agent trend detection · Sentiment-adjusted velocity scoring · Updated daily
-        </p>
+      {/* Hero header */}
+      <div className="mb-8 relative">
+        <div className="absolute -top-4 -left-4 w-64 h-64 rounded-full opacity-5 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, #6366f1, transparent)' }} />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}>
+              Intelligence Dashboard
+            </span>
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2" style={{
+            background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          }}>
+            Emerging Signals
+          </h1>
+          <p className="text-slate-600 text-sm max-w-lg">
+            Multi-agent trend detection across Reddit, HackerNews & NewsAPI · Sentiment-adjusted velocity scoring · Updated daily at 4AM IST
+          </p>
+        </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <STAT icon={<Layers size={16} className="text-indigo-400" />} label="Total Trends" value={stats.total} color="bg-indigo-500/10" />
-        <STAT icon={<Zap size={16} className="text-blue-400" />} label="Emerging" value={stats.emerging} color="bg-blue-500/10" />
-        <STAT icon={<TrendingUp size={16} className="text-orange-400" />} label="Rising" value={stats.rising} color="bg-orange-500/10" />
-        <STAT icon={<BarChart2 size={16} className="text-violet-400" />} label="Avg TVS" value={stats.avgTvs} color="bg-violet-500/10" />
+        <StatCard icon={<Layers size={16} style={{ color: '#818cf8' }} />} label="Total Trends" value={stats.total}
+          sub={`${stats.emerging + stats.rising} active`} color="#6366f1" />
+        <StatCard icon={<Zap size={16} style={{ color: '#60a5fa' }} />} label="Emerging" value={stats.emerging}
+          sub="New signals" color="#3b82f6" />
+        <StatCard icon={<TrendingUp size={16} style={{ color: '#fb923c' }} />} label="Rising" value={stats.rising}
+          sub="Accelerating" color="#f97316" />
+        <StatCard icon={<BarChart2 size={16} style={{ color: '#c084fc' }} />} label="Avg TVS" value={stats.avgTvs}
+          sub={`Peak: ${stats.topScore}`} color="#a855f7" />
       </div>
 
       {/* Ticker */}
       {!isLoading && filtered.length > 0 && <TrendingTicker trends={filtered} />}
 
-      {/* Domain tabs */}
-      <div className="flex gap-2 flex-wrap mb-3">
-        {['All', ...domains].map((d) => (
-          <button
-            key={d}
-            onClick={() => setActiveDomain(d)}
-            className={clsx(
-              'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border',
-              activeDomain === d
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
-                : 'bg-white/[0.03] text-slate-400 border-white/[0.06] hover:border-indigo-500/30 hover:text-slate-200'
-            )}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        {/* Domain tabs */}
+        <div className="flex gap-1.5 flex-wrap">
+          {['All', ...domains].map(d => (
+            <button key={d} onClick={() => setActiveDomain(d)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+              style={activeDomain === d
+                ? { background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }
+                : { background: 'rgba(255,255,255,0.03)', color: '#64748b', border: '1px solid rgba(255,255,255,0.06)' }
+              }
+            >
+              {d}
+            </button>
+          ))}
+        </div>
 
-      {/* Stage pills */}
-      <div className="flex gap-2 flex-wrap mb-8">
-        {STAGES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setActiveStage(s)}
-            className={clsx(
-              'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border',
-              activeStage === s
-                ? 'bg-white text-black border-white'
-                : 'bg-transparent text-slate-600 border-white/[0.06] hover:border-white/20 hover:text-slate-400'
-            )}
-          >
-            {s}
-          </button>
-        ))}
+        <div className="w-px bg-white/[0.06] hidden sm:block" />
+
+        {/* Stage pills */}
+        <div className="flex gap-1.5 flex-wrap">
+          {STAGES.map(s => (
+            <button key={s} onClick={() => setActiveStage(s)}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-200"
+              style={activeStage === s
+                ? { background: 'rgba(255,255,255,0.1)', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.15)' }
+                : { background: 'transparent', color: '#475569', border: '1px solid rgba(255,255,255,0.05)' }
+              }
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {/* Result count */}
+        {!isLoading && (
+          <div className="ml-auto flex items-center gap-1 text-xs text-slate-700 shrink-0">
+            <ArrowUpRight size={11} />
+            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+          </div>
+        )}
       </div>
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <TrendCardSkeleton key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-24 border border-dashed border-white/[0.06] rounded-2xl">
-          <p className="text-slate-600 mb-2">No trends found.</p>
-          <p className="text-slate-700 text-sm">Try adjusting filters or run the pipeline.</p>
+        <div className="text-center py-24 rounded-2xl" style={{ border: '1px dashed rgba(255,255,255,0.06)' }}>
+          <div className="text-4xl mb-4">🔍</div>
+          <p className="text-slate-600 mb-1 font-medium">No trends match these filters</p>
+          <p className="text-slate-700 text-sm">Try adjusting your domain or stage filter</p>
         </div>
       ) : (
-        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <AnimatePresence>
-            {filtered.map((trend) => (
-              <TrendCard key={trend.id} trend={trend} />
+        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((trend, i) => (
+              <motion.div key={trend.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}>
+                <TrendCard trend={trend} />
+              </motion.div>
             ))}
           </AnimatePresence>
         </motion.div>

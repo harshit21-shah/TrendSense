@@ -6,12 +6,17 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-      },
     },
   },
   plugins: [
     require('@tailwindcss/typography'),
+    function({ addUtilities }) {
+      addUtilities({
+        '.mask-fade-x': {
+          'mask-image': 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+          '-webkit-mask-image': 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+        },
+      })
+    },
   ],
 }
