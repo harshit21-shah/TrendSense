@@ -23,13 +23,30 @@ export function Navbar() {
 
   const { mutate: runPipeline, isPending } = useMutation({
     mutationFn: triggerPipeline,
-    onSuccess: () => setTimeout(() => qc.invalidateQueries({ queryKey: ['trends'] }), 2000),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trends'] })
+      setTimeout(() => qc.invalidateQueries({ queryKey: ['trends'] }), 5000)
+    },
   })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setSearchQuery(search)
+    const q = search.trim()
+    setSearchQuery(q)
     navigate('/')
+    if (!q) setSearchOpen(false)
+  }
+
+  const handleSearchBlur = () => {
+    // Delay so form submit fires before blur clears state
+    setTimeout(() => {
+      if (!search.trim()) setSearchOpen(false)
+    }, 150)
+  }
+
+  const handleSearchClear = () => {
+    setSearch('')
+    setSearchQuery('')
     setSearchOpen(false)
   }
 
@@ -37,18 +54,11 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-white/[0.06]" style={{ background: 'rgba(5,7,13,0.85)', backdropFilter: 'blur(20px)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3">
         {/* Logo */}
-        <NavLink to="/" className="flex items-center gap-2.5 shrink-0 mr-1 group">
-          <div className="relative w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            <Zap size={15} className="text-white" fill="white" />
-            <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'linear-gradient(135deg, #818cf8, #a78bfa)', boxShadow: '0 0 20px rgba(99,102,241,0.5)' }} />
+        <NavLink to="/" className="flex items-center gap-2.5 shrink-0 mr-1">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Activity size={18} className="text-white" />
           </div>
-          <div className="hidden sm:block">
-            <span className="text-white font-bold text-sm tracking-tight">TrendSense</span>
-            <div className="flex items-center gap-1 -mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" />
-              <span className="text-[9px] text-slate-600 font-medium uppercase tracking-widest">Live</span>
-            </div>
-          </div>
+          <span className="text-lg font-bold tracking-tight text-white">TrendSense</span>
         </NavLink>
 
         {/* Nav links */}
@@ -62,7 +72,7 @@ export function Navbar() {
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <div className="absolute inset-0 rounded-lg" style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }} />}
+                  {isActive && <div className="absolute inset-0 rounded-lg" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }} />}
                   <Icon size={13} className={isActive ? 'text-indigo-400' : ''} />
                   <span className="relative">{label}</span>
                   {label === 'Saved' && bookmarks.length > 0 && (

@@ -65,7 +65,7 @@ export const fetchTimeline = async (topic: string) => {
 
 export const triggerPipeline = async () => {
   try {
-    const { data } = await api.post('/admin/run-pipeline')
+    const { data } = await api.post('/run-pipeline')
     return data
   } catch {
     return { message: 'Pipeline triggered (mock)', status: 'started' }
