@@ -10,7 +10,6 @@ langchain
 langchain-groq
 langchain-openai
 chromadb
-sentence-transformers
 apscheduler
 praw
 httpx
@@ -20,6 +19,3 @@ textblob
 vaderSentiment
 scikit-learn
 nltk
-# CPU-only torch — avoids pulling the 2GB CUDA build
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
