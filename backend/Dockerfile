@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps
-COPY requirements.txt .
+# Python deps - from repo root
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download NLP corpora so first request doesn't stall
@@ -17,8 +17,7 @@ RUN python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab'); 
 RUN python -c "import textblob; textblob.download_corpora()" || true
 
 # Copy app code
-COPY . .
+COPY backend/ .
 
 EXPOSE 8000
-
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
