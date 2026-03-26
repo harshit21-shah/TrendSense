@@ -175,7 +175,7 @@ const Chat: React.FC = () => {
           <div>
             <div className="flex items-center gap-1.5 text-accent font-mono text-[10px] font-bold uppercase tracking-[0.15em]">
               <Sparkles size={9} className="animate-pulse" />
-              <span>AI Research Assistant</span>
+              <span>Shruti - AI Research Assistant</span>
             </div>
             <h1 className="text-sm font-bold tracking-tight text-text-primary leading-tight">Intelligence Query</h1>
           </div>
@@ -216,8 +216,8 @@ const Chat: React.FC = () => {
               <Bot size={28} className="text-accent" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-black text-text-primary tracking-tight">How can I assist your research?</h2>
-              <p className="text-text-secondary/60 max-w-sm mx-auto text-sm">Query the intelligence engine for trends, market analysis, or strategic insights.</p>
+              <h2 className="text-lg font-black text-text-primary tracking-tight">Hi, I'm Shruti! How can I help?</h2>
+              <p className="text-text-secondary/60 max-w-sm mx-auto text-sm">Ask me about trends, market analysis, or strategic insights.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">

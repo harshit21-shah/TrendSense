@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn';
 
 const navItems = [
   { to: '/',         icon: LayoutDashboard, label: 'Signals',  ariaLabel: 'Navigate to Signals page'  },
-  { to: '/chat',     icon: MessageSquare,   label: 'Chat',     ariaLabel: 'Navigate to Chat page'     },
+  { to: '/chat',     icon: MessageSquare,   label: 'Shruti',   ariaLabel: 'Chat with Shruti'          },
   { to: '/brief',    icon: Calendar,        label: 'Brief',    ariaLabel: 'Navigate to Daily Brief page' },
   { to: '/timeline', icon: Clock,           label: 'Timeline', ariaLabel: 'Navigate to Timeline page' },
   { to: '/saved',    icon: Bookmark,        label: 'Saved',    ariaLabel: 'Navigate to Saved page'    },

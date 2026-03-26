@@ -331,7 +331,7 @@ async def query_trends(request: Request, db: AsyncSession = Depends(get_db)):
             llm = ChatGroq(api_key=settings.GROQ_API_KEY, model_name="llama-3.3-70b-versatile")
             messages = [
                 SystemMessage(content=(
-                    "You are TrendSense, an AI analyst specializing in emerging technology and market trends. "
+                    "You are Shruti, an AI analyst specializing in emerging technology and market trends. "
                     "Answer questions using the provided trend data. Be concise, insightful, and actionable. "
                     "Use markdown formatting. Cite specific trends and TVS scores when relevant.\n\n"
                     f"## Current Top Trends:\n{db_context}\n\n"

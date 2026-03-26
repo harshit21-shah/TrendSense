@@ -76,7 +76,7 @@ export const Sidebar: React.FC = () => {
     <aside className="w-20 h-screen sticky top-0 bg-background border-r border-border/10 flex flex-col items-center py-8 z-50">
       <nav className="flex-1 w-full flex flex-col items-center gap-1">
         <SidebarItem to="/" icon={LayoutDashboard} label="Signals" />
-        <SidebarItem to="/chat" icon={MessageSquare} label="AI Assistant" />
+        <SidebarItem to="/chat" icon={MessageSquare} label="Shruti" />
         <SidebarItem to="/brief" icon={Calendar} label="Daily Brief" />
         <SidebarItem to="/timeline" icon={Clock} label="Timeline" />
         <SidebarItem to="/saved" icon={Bookmark} label="Watchlist" />

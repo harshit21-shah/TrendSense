@@ -27,7 +27,7 @@ export const KeyboardShortcuts: React.FC = () => {
     { key: '⌘ + K', label: 'Search Intelligence', icon: <Search size={14} /> },
     { key: '?', label: 'Show Shortcuts', icon: <Hash size={14} /> },
     { key: 'G + S', label: 'Go to Signals', icon: <LayoutDashboard size={14} /> },
-    { key: 'G + A', label: 'Go to AI Assistant', icon: <MessageSquare size={14} /> },
+    { key: 'G + A', label: 'Chat with Shruti', icon: <MessageSquare size={14} /> },
     { key: 'G + B', label: 'Go to Daily Brief', icon: <Calendar size={14} /> },
     { key: 'G + W', label: 'Go to Watchlist', icon: <Bookmark size={14} /> },
     { key: 'Esc', label: 'Close Modals', icon: <X size={14} /> },

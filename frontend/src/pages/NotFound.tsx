@@ -50,7 +50,7 @@ const NotFound: React.FC = () => {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {[
               { label: 'Signals', path: '/' },
-              { label: 'AI Assistant', path: '/chat' },
+              { label: 'Shruti', path: '/chat' },
               { label: 'Daily Brief', path: '/brief' },
               { label: 'Watchlist', path: '/saved' },
             ].map((link) => (
