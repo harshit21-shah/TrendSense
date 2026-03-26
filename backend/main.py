@@ -67,10 +67,11 @@ async def startup():
 async def run_intelligence_pipeline():
     """Background task to run the LangGraph pipeline."""
     global _pipeline_running
+    from app.config import settings as _settings
     _pipeline_running = True
     logger.info("Starting trend intelligence pipeline...")
 
-    if not settings.GROQ_API_KEY:
+    if not _settings.GROQ_API_KEY:
         logger.error("GROQ_API_KEY is not set. Pipeline aborted.")
         _pipeline_running = False
         return
