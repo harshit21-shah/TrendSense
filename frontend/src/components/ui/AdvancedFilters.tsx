@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, SlidersHorizontal, Calendar, TrendingUp, Filter } from 'lucide-react';
-import { cn } from '../../utils/cn';
 
 interface AdvancedFiltersProps {
   isOpen: boolean;

@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom';
 import { Menu, X, Info, Search } from 'lucide-react';
 import { SearchInput } from './SearchInput';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useThemeStore } from '../../store/useThemeStore';
 
 export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Command, Keyboard } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { X, Keyboard } from 'lucide-react';
 
 interface Shortcut {
   keys: string[];
