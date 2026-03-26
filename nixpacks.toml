@@ -2,13 +2,13 @@
 nixPkgs = ["python311", "postgresql"]
 
 [phases.install]
-cmds = ["cd backend && pip install -r requirements.txt"]
+cmds = ["cd backend && python -m pip install --upgrade pip && python -m pip install -r requirements.txt"]
 
 [phases.build]
 cmds = [
-  "cd backend && python -c 'import nltk; nltk.download(\"punkt\"); nltk.download(\"punkt_tab\"); nltk.download(\"averaged_perceptron_tagger\")'",
+  "cd backend && python -c 'import nltk; nltk.download(\"punkt\"); nltk.download(\"punkt_tab\"); nltk.download(\"averaged_perceptron_tagger\")' || true",
   "cd backend && python -c 'import textblob; textblob.download_corpora()' || true"
 ]
 
 [start]
-cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
