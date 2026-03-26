@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-black text-text-primary tracking-tight">Intelligence Feed Interrupted</h3>
-              <p className="text-text-secondary max-w-md mx-auto text-sm">We encountered an error while retrieving market signals. This may be due to a temporary connection issue.</p>
+              <p className="text-text-secondary max-w-md mx-auto text-sm">Can't reach the backend at <code className="text-accent text-xs bg-surface px-1.5 py-0.5 rounded">{import.meta.env.VITE_API_URL || 'http://localhost:8000'}</code>. Make sure the backend is running and <code className="text-accent text-xs bg-surface px-1.5 py-0.5 rounded">VITE_API_URL</code> is set correctly.</p>
             </div>
             <button
               onClick={() => refetch()}
