@@ -69,6 +69,11 @@ async def run_intelligence_pipeline():
     global _pipeline_running
     _pipeline_running = True
     logger.info("Starting trend intelligence pipeline...")
+
+    if not settings.GROQ_API_KEY:
+        logger.error("GROQ_API_KEY is not set. Pipeline aborted.")
+        _pipeline_running = False
+        return
     initial_state = {
         "domains": ["AI", "Fintech", "Health"],
         "raw_signals": [],
@@ -328,7 +333,7 @@ async def query_trends(request: Request, db: AsyncSession = Depends(get_db)):
                 for t in top_trends
             )
 
-            llm = ChatGroq(api_key=settings.GROQ_API_KEY, model_name="llama-3.3-70b-versatile")
+            llm = ChatGroq(api_key=settings.GROQ_API_KEY, model_name="llama-3.1-8b-instant")
             messages = [
                 SystemMessage(content=(
                     "You are Shruti, an AI analyst specializing in emerging technology and market trends. "

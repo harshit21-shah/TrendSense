@@ -25,7 +25,7 @@ class SynthesisAgent:
     def __init__(self):
         self.llm = ChatGroq(
             api_key=settings.GROQ_API_KEY,
-            model_name="llama-3.3-70b-versatile"
+            model_name="llama-3.1-8b-instant"
         )
         self.parser = JsonOutputParser()
         
@@ -58,10 +58,10 @@ Each object MUST use exactly these lowercase keys:
         logger.info("Running Synthesis Agent...")
         
         try:
-            # Format signals for LLM
+            # Format signals for LLM - limit to top 15 to reduce token usage
             formatted_signals = "\n".join([
                 f"- [{s['source']}] {s['title']} (Sentiment: {s['sentiment_label']}, Score: {s['score']})"
-                for s in state["processed_signals"][:30] # Limit to top 30 for context
+                for s in state["processed_signals"][:15]
             ])
             
             chain = self.prompt | self.llm | self.parser

@@ -20,7 +20,7 @@ class RAGAgent:
     def __init__(self):
         self.llm = ChatGroq(
             api_key=settings.GROQ_API_KEY,
-            model_name="llama-3.3-70b-versatile"
+            model_name="llama-3.1-8b-instant"
         )
         
         self.validator_prompt = ChatPromptTemplate.from_template("""
