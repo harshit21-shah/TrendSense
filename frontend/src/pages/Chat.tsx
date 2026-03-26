@@ -16,6 +16,7 @@ import { useTrendStore } from '../store/useTrendStore';
 import { useToastStore } from '../store/useToastStore';
 import { cn } from '../utils/cn';
 import ReactMarkdown from 'react-markdown';
+import shrutiImage from '/shruti.png';
 
 const TypingIndicator = () => (
   <div className="flex gap-2 p-4 rounded-3xl bg-surface/30 border border-border/5 w-fit">
@@ -169,8 +170,8 @@ const Chat: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between py-2 px-1 shrink-0 border-b border-border/10">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-card bg-surface-raised border border-border/50 flex items-center justify-center">
-            <Bot size={16} className="text-accent" />
+          <div className="w-8 h-8 rounded-card bg-surface-raised border border-border/50 flex items-center justify-center overflow-hidden">
+            <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="flex items-center gap-1.5 text-accent font-mono text-[10px] font-bold uppercase tracking-[0.15em]">
@@ -212,8 +213,8 @@ const Chat: React.FC = () => {
       >
         {chatHistory.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-5 py-8">
-            <div className="w-14 h-14 rounded-2xl bg-surface-raised border border-border/50 flex items-center justify-center">
-              <Bot size={28} className="text-accent" />
+            <div className="w-14 h-14 rounded-2xl bg-surface-raised border border-border/50 flex items-center justify-center overflow-hidden">
+              <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
             </div>
             <div className="space-y-1">
               <h2 className="text-lg font-black text-text-primary tracking-tight">Hi, I'm Shruti! How can I help?</h2>
@@ -250,9 +251,9 @@ const Chat: React.FC = () => {
                   "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
                   message.role === 'user'
                     ? "bg-text-primary text-background"
-                    : "bg-surface-raised border border-border/50 text-accent"
+                    : "bg-surface-raised border border-border/50 text-accent overflow-hidden"
                 )}>
-                  {message.role === 'user' ? <User size={15} /> : <Bot size={15} />}
+                  {message.role === 'user' ? <User size={15} /> : <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />}
                 </div>
 
                 <div className={cn(
@@ -285,8 +286,8 @@ const Chat: React.FC = () => {
             ))}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-xl bg-surface-raised border border-border/50 flex items-center justify-center text-accent shrink-0">
-                  <Bot size={15} />
+                <div className="w-8 h-8 rounded-xl bg-surface-raised border border-border/50 flex items-center justify-center text-accent shrink-0 overflow-hidden">
+                  <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
                 </div>
                 <TypingIndicator />
               </div>

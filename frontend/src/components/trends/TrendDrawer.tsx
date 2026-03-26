@@ -422,23 +422,51 @@ export const TrendDrawer: React.FC<TrendDrawerProps> = ({ trend, onClose }) => {
                       <div className="space-y-2">
                         {trend.source_citations.map((source, i) => {
                           let domain = source;
-                          try { domain = new URL(source).hostname.replace(/^www\./, ''); } catch {}
+                          let displayUrl = source;
+                          let isValidUrl = false;
+                          try { 
+                            const url = new URL(source);
+                            domain = url.hostname.replace(/^www\./, '');
+                            displayUrl = source;
+                            isValidUrl = true;
+                          } catch {
+                            // Not a valid URL, display as-is
+                          }
                           return (
-                            <a
+                            <div
                               key={i}
-                              href={source}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface/50 hover:bg-surface border border-border/10 hover:border-accent/20 text-sm text-text-secondary hover:text-text-primary transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                              className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface/50 hover:bg-surface border border-border/10 hover:border-accent/20 transition-all group"
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className="w-5 h-5 rounded-lg bg-surface-overlay border border-border/20 flex items-center justify-center shrink-0">
                                   <span className="text-[9px] font-black text-text-muted/60">{i+1}</span>
                                 </div>
-                                <span className="truncate font-medium text-sm">{domain}</span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate font-medium text-sm text-text-secondary group-hover:text-text-primary transition-colors">
+                                    {domain}
+                                  </div>
+                                  {isValidUrl && displayUrl !== domain && (
+                                    <div className="truncate text-xs text-text-muted/50 mt-0.5">
+                                      {displayUrl}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <ExternalLink size={13} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2 text-accent" />
-                            </a>
+                              {isValidUrl ? (
+                                <a
+                                  href={source}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2 text-accent hover:text-accent/80 p-1"
+                                  aria-label={`Open ${domain} in new tab`}
+                                >
+                                  <ExternalLink size={13} />
+                                </a>
+                              ) : (
+                                <span className="text-xs text-text-muted/40 shrink-0 ml-2">Invalid URL</span>
+                              )}
+                            </div>
                           );
                         })}
                       </div>

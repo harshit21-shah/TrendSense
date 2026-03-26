@@ -1,6 +1,7 @@
 import httpx
 from typing import List, Dict
 from .logger import logger
+from .text_utils import normalize_trend_title
 
 class HackerNewsService:
     BASE_URL = "https://hn.algolia.com/api/v1/search"
@@ -28,7 +29,7 @@ class HackerNewsService:
                         all_stories.append({
                             "source": "hn",
                             "source_id": f"hn_{hit['objectID']}",
-                            "title": hit.get("title", ""),
+                            "title": normalize_trend_title(hit.get("title", "")),
                             "content": hit.get("story_text", "") or hit.get("comment_text", ""),
                             "score": hit.get("points", 0),
                             "url": hit.get("url", f"https://news.ycombinator.com/item?id={hit['objectID']}"),

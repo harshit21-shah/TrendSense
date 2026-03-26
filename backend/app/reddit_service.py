@@ -2,6 +2,7 @@ import httpx
 import xml.etree.ElementTree as ET
 from typing import List, Dict
 from .logger import logger
+from .text_utils import normalize_trend_title
 
 class RedditRSSService:
     """
@@ -35,7 +36,7 @@ class RedditRSSService:
                     signals.append({
                         "source": "reddit_rss",
                         "source_id": f"rss_{link.split('/')[-2]}",
-                        "title": title,
+                        "title": normalize_trend_title(title),
                         "content": content[:500], # RSS content is HTML, we'll keep it brief
                         "score": 100, # Default score for RSS items
                         "url": link,

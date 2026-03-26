@@ -11,6 +11,7 @@ import Layout from './components/layout/Layout';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { KeyboardShortcuts } from './components/ui/KeyboardShortcuts';
 import { KeyboardShortcutsModal } from './components/ui/KeyboardShortcutsModal';
+import { WelcomeModal } from './components/ui/WelcomeModal';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const queryClient = new QueryClient({
@@ -90,6 +91,7 @@ function App() {
           <ToastContainer />
           <KeyboardShortcuts />
           <KeyboardShortcutsModal />
+          <WelcomeModal />
         </Router>
       </QueryClientProvider>
     </ErrorBoundary>

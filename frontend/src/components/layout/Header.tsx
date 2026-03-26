@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Menu, X, Info, Search } from 'lucide-react';
+import { Menu, X, Info, Search, HelpCircle } from 'lucide-react';
 import { SearchInput } from './SearchInput';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -8,6 +8,11 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  const handleShowHelp = () => {
+    localStorage.removeItem('trendsense_welcome_seen');
+    window.location.reload();
+  };
 
   return (
     <>
@@ -43,6 +48,16 @@ export const Header: React.FC = () => {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2 ml-4">
           <button
+            onClick={handleShowHelp}
+            className="p-2 text-text-muted hover:text-text-primary transition-all duration-200 rounded-lg hover:bg-surface-raised hover:scale-105 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center group relative"
+            aria-label="Show help guide"
+          >
+            <HelpCircle size={16} strokeWidth={2} />
+            <span className="absolute top-full mt-2 px-3 py-1.5 rounded-lg bg-surface-overlay border border-border/50 text-[10px] font-bold text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none shadow-xl">
+              Help
+            </span>
+          </button>
+          <button
             onClick={() => setShowAbout(true)}
             className="p-2 text-text-muted hover:text-text-primary transition-all duration-200 rounded-lg hover:bg-surface-raised hover:scale-105 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center group relative"
             aria-label="About TrendSense"
@@ -56,6 +71,13 @@ export const Header: React.FC = () => {
 
         {/* Mobile Actions */}
         <div className="md:hidden flex items-center gap-1">
+          <button
+            onClick={handleShowHelp}
+            className="p-2 text-text-muted hover:text-text-primary transition-colors duration-150 w-9 h-9 flex items-center justify-center"
+            aria-label="Help"
+          >
+            <HelpCircle size={15} />
+          </button>
           <button
             onClick={() => setShowAbout(true)}
             className="p-2 text-text-muted hover:text-text-primary transition-colors duration-150 w-9 h-9 flex items-center justify-center"
@@ -88,6 +110,13 @@ export const Header: React.FC = () => {
                     <SearchInput />
                   </div>
                   <div className="space-y-1 pt-2">
+                    <button
+                      onClick={() => { handleShowHelp(); setIsMobileMenuOpen(false); }}
+                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-surface transition-colors duration-150 text-sm font-medium text-text-secondary h-12 flex items-center gap-3"
+                    >
+                      <HelpCircle size={15} />
+                      How to Use TrendSense
+                    </button>
                     <button
                       onClick={() => { setShowAbout(true); setIsMobileMenuOpen(false); }}
                       className="w-full text-left px-4 py-3 rounded-lg hover:bg-surface transition-colors duration-150 text-sm font-medium text-text-secondary h-12 flex items-center gap-3"

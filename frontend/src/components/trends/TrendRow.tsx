@@ -103,12 +103,34 @@ export const TrendRow: React.FC<TrendRowProps> = ({ trend, onClick, index }) => 
 
       {/* Score & Trajectory */}
       <div className="flex items-center md:flex-col gap-3 md:gap-1 w-full md:w-auto md:min-w-[56px] shrink-0">
-        <span
-          title="Trend Velocity Score (0–100)"
-          className="text-[32px] font-bold font-mono text-text-primary tracking-tighter leading-none cursor-help"
-        >
-          {trend.velocity_score}
-        </span>
+        <div className="relative group/tvs">
+          <span
+            title="Trend Velocity Score (0–100)"
+            className={cn(
+              "text-[32px] font-bold font-mono tracking-tighter leading-none cursor-help transition-colors",
+              trend.velocity_score >= 90 ? "text-success" :
+              trend.velocity_score >= 70 ? "text-blue-400" :
+              trend.velocity_score >= 50 ? "text-yellow-400" :
+              "text-text-primary"
+            )}
+          >
+            {trend.velocity_score}
+          </span>
+          {/* TVS Tooltip */}
+          <div
+            role="tooltip"
+            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-xl bg-surface-overlay border border-border/50 text-xs text-text-secondary leading-relaxed opacity-0 invisible group-hover/tvs:opacity-100 group-hover/tvs:visible transition-all z-20 shadow-2xl pointer-events-none"
+          >
+            <strong className="text-text-primary block mb-1">Trend Velocity Score (TVS)</strong>
+            Measures trend acceleration (0-100) based on social engagement, source diversity, and momentum.
+            <div className="mt-2 pt-2 border-t border-border/30 space-y-1 text-[10px]">
+              <div className="flex justify-between"><span className="text-success">90-100:</span> <span>Very High</span></div>
+              <div className="flex justify-between"><span className="text-blue-400">70-89:</span> <span>High</span></div>
+              <div className="flex justify-between"><span className="text-yellow-400">50-69:</span> <span>Medium</span></div>
+              <div className="flex justify-between"><span className="text-text-muted">0-49:</span> <span>Low</span></div>
+            </div>
+          </div>
+        </div>
         <div className="flex items-center gap-1">
           {isPositive
             ? <TrendingUp size={11} className="text-success" />
@@ -125,9 +147,7 @@ export const TrendRow: React.FC<TrendRowProps> = ({ trend, onClick, index }) => 
               key={i}
               className={cn(
                 "w-[2.5px] rounded-full transition-all duration-300",
-                isPositive
-                  ? isHovered ? "bg-success/70" : "bg-success/25"
-                  : isHovered ? "bg-danger/70"  : "bg-danger/25"
+                isHovered ? "bg-accent/60" : "bg-accent/20"
               )}
               style={{ height: `${val}%` }}
             />
@@ -143,8 +163,22 @@ export const TrendRow: React.FC<TrendRowProps> = ({ trend, onClick, index }) => 
               New
             </span>
           )}
-          <span className={cn("px-1.5 py-0.5 rounded-badge text-[10px] font-bold uppercase tracking-wider border", stageClass)}>
+          <span 
+            className={cn("px-1.5 py-0.5 rounded-badge text-[10px] font-bold uppercase tracking-wider border cursor-help relative group/stage", stageClass)}
+            title={`${trend.stage} stage trend`}
+          >
             {trend.stage}
+            {/* Stage Tooltip */}
+            <div
+              role="tooltip"
+              className="absolute left-0 top-full mt-1 w-56 p-2.5 rounded-lg bg-surface-overlay border border-border/50 text-[10px] text-text-secondary leading-relaxed opacity-0 invisible group-hover/stage:opacity-100 group-hover/stage:visible transition-all z-20 shadow-2xl pointer-events-none"
+            >
+              <strong className="text-text-primary block mb-0.5">{trend.stage}</strong>
+              {stageKey === 'emerging' && 'Early-stage signals with high risk/reward potential'}
+              {stageKey === 'rising' && 'Growing momentum with increasing adoption'}
+              {stageKey === 'mainstream' && 'Established trends with broad awareness'}
+              {stageKey === 'fading' && 'Declining interest, potential pivot opportunity'}
+            </div>
           </span>
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{trend.domain}</span>
           <span className="text-[10px] text-text-muted/50">{formatRelativeDate(trend.first_seen_at)}</span>

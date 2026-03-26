@@ -3,6 +3,7 @@ from typing import List, Dict
 from datetime import datetime, timezone, timedelta
 from .config import settings
 from .logger import logger
+from .text_utils import normalize_trend_title
 
 
 class NewsAPIService:
@@ -43,7 +44,7 @@ class NewsAPIService:
                     articles.append({
                         "source": "newsapi",
                         "source_id": f"news_{abs(hash(article.get('url', '')))}",
-                        "title": article.get("title", ""),
+                        "title": normalize_trend_title(article.get("title", "")),
                         "content": article.get("description", "") or article.get("content", ""),
                         "score": 100,  # NewsAPI doesn't have engagement scores
                         "url": article.get("url", ""),
