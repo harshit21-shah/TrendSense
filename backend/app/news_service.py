@@ -57,13 +57,20 @@ class NewsAPIService:
         return articles
 
     async def fetch_all_categories(self) -> List[Dict]:
-        """Fetches headlines across all configured categories."""
+        """Fetches headlines across all configured categories and deduplicates by URL."""
         all_articles: List[Dict] = []
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            for category in self.CATEGORIES:
-                articles = await self.fetch_top_headlines(category)
-                all_articles.extend(articles)
-                logger.info(f"NewsAPI: fetched {len(articles)} articles for '{category}'")
+        seen_urls = set()
+        
+        for category in self.CATEGORIES:
+            articles = await self.fetch_top_headlines(category)
+            for article in articles:
+                url = article.get("url")
+                if url and url not in seen_urls:
+                    all_articles.append(article)
+                    seen_urls.add(url)
+            
+            logger.info(f"NewsAPI: fetched {len(articles)} articles for '{category}'. Total unique: {len(all_articles)}")
+        
         return all_articles
 
 

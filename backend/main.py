@@ -32,6 +32,31 @@ async def startup():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("Database tables created.")
+            
+            # Clean up duplicate trends if any exist
+            from app.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                # Find duplicate titles
+                result = await session.execute(text("""
+                    SELECT title FROM trends 
+                    GROUP BY title 
+                    HAVING COUNT(*) > 1
+                """))
+                duplicate_titles = [row[0] for row in result.all()]
+                
+                if duplicate_titles:
+                    logger.info(f"Found {len(duplicate_titles)} duplicate trend titles. Cleaning up...")
+                    for title in duplicate_titles:
+                        # Keep the one with the highest ID (likely the newest or just a stable pick)
+                        await session.execute(text("""
+                            DELETE FROM trends 
+                            WHERE title = :title 
+                            AND id NOT IN (
+                                SELECT MAX(id) FROM trends WHERE title = :title
+                            )
+                        """), {"title": title})
+                    await session.commit()
+                    logger.info("Duplicate trends cleaned up.")
             break
         except Exception as e:
             logger.warning(f"DB not ready (attempt {attempt + 1}/10): {e}")
@@ -63,6 +88,11 @@ async def run_intelligence_pipeline():
             for trend_data in final_state.get("validated_trends", []):
                 # Normalise keys — LLM may return capitalised variants
                 td = {k.lower(): v for k, v in trend_data.items()}
+                title = td.get("title", "Untitled")
+
+                # Check if trend with this title already exists
+                stmt = select(Trend).where(Trend.title == title)
+                existing_trend = (await session.execute(stmt)).scalar_one_or_none()
 
                 # Parse sources — LLM sometimes returns a JSON string instead of a list
                 sources = td.get("sources", [])
@@ -72,19 +102,34 @@ async def run_intelligence_pipeline():
                     except Exception:
                         sources = [s.strip() for s in sources.split(",") if s.strip()]
 
-                new_trend = Trend(
-                    title=td.get("title", "Untitled"),
-                    domain=td.get("domain", "Other"),
-                    velocity_score=float(td.get("s_tvs", td.get("velocity_score", 0.0))),
-                    stage=td.get("stage", "Emerging"),
-                    summary=td.get("summary", ""),
-                    investment_thesis=td.get("investment_thesis", ""),
-                    product_opportunity=td.get("product_opportunity", ""),
-                    risk_assessment=td.get("risk_assessment", ""),
-                    historical_accuracy=td.get("historical_accuracy", ""),
-                    source_citations=sources,
-                )
-                session.add(new_trend)
+                velocity_score = float(td.get("s_tvs", td.get("velocity_score", 0.0)))
+
+                if existing_trend:
+                    # Update existing trend
+                    existing_trend.domain = td.get("domain", existing_trend.domain)
+                    existing_trend.tvs_delta = velocity_score - existing_trend.velocity_score
+                    existing_trend.velocity_score = velocity_score
+                    existing_trend.stage = td.get("stage", existing_trend.stage)
+                    existing_trend.summary = td.get("summary", existing_trend.summary)
+                    existing_trend.investment_thesis = td.get("investment_thesis", existing_trend.investment_thesis)
+                    existing_trend.product_opportunity = td.get("product_opportunity", existing_trend.product_opportunity)
+                    existing_trend.risk_assessment = td.get("risk_assessment", existing_trend.risk_assessment)
+                    existing_trend.source_citations = sources
+                else:
+                    # Create new trend
+                    new_trend = Trend(
+                        title=title,
+                        domain=td.get("domain", "Other"),
+                        velocity_score=velocity_score,
+                        stage=td.get("stage", "Emerging"),
+                        summary=td.get("summary", ""),
+                        investment_thesis=td.get("investment_thesis", ""),
+                        product_opportunity=td.get("product_opportunity", ""),
+                        risk_assessment=td.get("risk_assessment", ""),
+                        historical_accuracy=td.get("historical_accuracy", ""),
+                        source_citations=sources,
+                    )
+                    session.add(new_trend)
             await session.commit()
             logger.info(f"Pipeline finished. Saved {len(final_state.get('validated_trends', []))} trends.")
             
@@ -128,18 +173,22 @@ async def pipeline_status():
 
 @app.get("/trends", response_model=List[dict])
 async def get_trends(
-    domain: str = None,
-    stage: str = None,
+    domains: str = None,
+    stages: str = None,
+    deduplicate: bool = True,
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Trend).order_by(Trend.velocity_score.desc())
-    if domain:
-        query = query.where(Trend.domain == domain)
-    if stage:
-        query = query.where(Trend.stage == stage)
+    if domains:
+        domain_list = domains.split(',')
+        query = query.where(Trend.domain.in_(domain_list))
+    if stages:
+        stage_list = stages.split(',')
+        query = query.where(Trend.stage.in_(stage_list))
     result = await db.execute(query)
     trends = result.scalars().all()
-    return [
+    
+    trends_data = [
         {
             "id": t.id,
             "title": t.title,
@@ -156,6 +205,14 @@ async def get_trends(
         }
         for t in trends
     ]
+    
+    # Apply deduplication if requested
+    if deduplicate:
+        from app.deduplication import deduplicator
+        trends_data = deduplicator.deduplicate(trends_data)
+        logger.info(f"Returned {len(trends_data)} deduplicated trends")
+    
+    return trends_data
 
 def _parse_sources(raw) -> list:
     """Ensure source_citations is always a list of strings."""
@@ -171,11 +228,77 @@ def _parse_sources(raw) -> list:
             return [s.strip() for s in raw.split(",") if s.strip()]
     return []
 
-@app.get("/domains", response_model=List[str])
+@app.get("/domains", response_model=List[dict])
 async def get_domains(db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import distinct
-    result = await db.execute(select(distinct(Trend.domain)).where(Trend.domain.isnot(None)))
-    return [row[0] for row in result.all()]
+    from sqlalchemy import func
+    result = await db.execute(
+        select(Trend.domain, func.count(Trend.id))
+        .where(Trend.domain.isnot(None))
+        .group_by(Trend.domain)
+    )
+    return [{"name": row[0], "count": row[1]} for row in result.all()]
+
+@app.get("/stages", response_model=List[dict])
+async def get_stages(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import func
+    result = await db.execute(
+        select(Trend.stage, func.count(Trend.id))
+        .where(Trend.stage.isnot(None))
+        .group_by(Trend.stage)
+    )
+    return [{"name": row[0], "count": row[1]} for row in result.all()]
+
+@app.get("/search", response_model=List[dict])
+async def search_trends(
+    q: str,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import or_
+    query = select(Trend).where(
+        or_(
+            Trend.title.ilike(f"%{q}%"),
+            Trend.summary.ilike(f"%{q}%"),
+            Trend.domain.ilike(f"%{q}%")
+        )
+    ).order_by(Trend.velocity_score.desc())
+    result = await db.execute(query)
+    trends = result.scalars().all()
+    return [
+        {
+            "id": t.id,
+            "title": t.title,
+            "domain": t.domain,
+            "velocity_score": t.velocity_score,
+            "tvs_delta": t.tvs_delta or 0.0,
+            "stage": t.stage,
+            "summary": t.summary,
+            "source_citations": _parse_sources(t.source_citations),
+        }
+        for t in trends
+    ]
+
+@app.get("/deduplication-report")
+async def get_deduplication_report(db: AsyncSession = Depends(get_db)):
+    """Get a detailed report of duplicate trends in the database."""
+    from app.deduplication import deduplicator
+    
+    # Get all trends
+    result = await db.execute(select(Trend).order_by(Trend.velocity_score.desc()))
+    trends = result.scalars().all()
+    
+    trends_data = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "domain": t.domain,
+            "velocity_score": t.velocity_score,
+            "first_seen_at": t.first_seen_at,
+        }
+        for t in trends
+    ]
+    
+    report = deduplicator.get_deduplication_report(trends_data)
+    return report
 
 @app.post("/query")
 async def query_trends(request: Request, db: AsyncSession = Depends(get_db)):

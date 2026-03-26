@@ -1,41 +1,41 @@
-import { clsx } from 'clsx'
+import React from 'react';
+import { cn } from '../../utils/cn';
 
-const STAGE: Record<string, { bg: string; text: string; dot: string }> = {
-  emerging: { bg: 'rgba(59,130,246,0.1)', text: '#60a5fa', dot: '#3b82f6' },
-  rising:   { bg: 'rgba(249,115,22,0.1)', text: '#fb923c', dot: '#f97316' },
-  mainstream: { bg: 'rgba(168,85,247,0.1)', text: '#c084fc', dot: '#a855f7' },
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'accent' | 'outline';
+  size?: 'xs' | 'sm';
+  className?: string;
 }
 
-const DOMAIN: Record<string, { bg: string; text: string }> = {
-  AI:      { bg: 'rgba(99,102,241,0.12)', text: '#818cf8' },
-  Fintech: { bg: 'rgba(16,185,129,0.12)', text: '#34d399' },
-  Health:  { bg: 'rgba(244,63,94,0.12)',  text: '#fb7185' },
-  Crypto:  { bg: 'rgba(234,179,8,0.12)',  text: '#facc15' },
-  Climate: { bg: 'rgba(34,197,94,0.12)',  text: '#4ade80' },
-  Other:   { bg: 'rgba(100,116,139,0.12)', text: '#94a3b8' },
-}
+export const Badge: React.FC<BadgeProps> = ({
+  children,
+  variant = 'default',
+  size = 'sm',
+  className
+}) => {
+  const variantClasses: Record<string, string> = {
+    default: 'bg-surface-raised text-text-secondary border-border/50',
+    accent:  'bg-accent/10 text-accent border-accent/20',
+    success: 'bg-success/10 text-success border-success/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
+    danger:  'bg-danger/10 text-danger border-danger/20',
+    outline: 'bg-transparent text-text-muted border-border/50',
+  };
 
-export const StageBadge = ({ stage }: { stage: string }) => {
-  const s = STAGE[stage?.toLowerCase()] ?? STAGE.emerging
+  const sizeClasses: Record<string, string> = {
+    xs: 'px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+    sm: 'px-2 py-0.5 text-xs font-medium',
+  };
+
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-      style={{ background: s.bg, color: s.text, border: `1px solid ${s.dot}30` }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
-      {stage}
+    <span className={cn(
+      "inline-flex items-center rounded-badge border transition-colors",
+      variantClasses[variant],
+      sizeClasses[size],
+      className
+    )}>
+      {children}
     </span>
-  )
-}
-
-export const DomainBadge = ({ domain }: { domain: string }) => {
-  const d = DOMAIN[domain] ?? DOMAIN.Other
-  return (
-    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-      style={{ background: d.bg, color: d.text }}>
-      {domain}
-    </span>
-  )
-}
-
-export const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', className)}>{children}</span>
-)
+  );
+};

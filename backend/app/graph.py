@@ -41,8 +41,25 @@ async def fetch_signals_node(state: AgentState) -> AgentState:
     )
     reddit_posts = [item for sublist in reddit_results for item in sublist]
 
-    state["raw_signals"] = reddit_posts + hn_stories + news_articles
-    logger.info(f"Fetched {len(reddit_posts)} Reddit, {len(hn_stories)} HN, {len(news_articles)} News signals.")
+    # Deduplicate all signals by URL
+    all_signals = reddit_posts + hn_stories + news_articles
+    unique_signals = []
+    seen_urls = set()
+    
+    for s in all_signals:
+        url = s.get("url")
+        if url and url not in seen_urls:
+            unique_signals.append(s)
+            seen_urls.add(url)
+        elif not url:
+            # If no URL, use title as fallback for deduplication
+            title = s.get("title")
+            if title and title not in seen_urls:
+                unique_signals.append(s)
+                seen_urls.add(title)
+
+    state["raw_signals"] = unique_signals
+    logger.info(f"Fetched {len(reddit_posts)} Reddit, {len(hn_stories)} HN, {len(news_articles)} News signals. Unique: {len(unique_signals)}")
     return state
 
 def create_trend_graph():

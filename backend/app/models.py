@@ -19,7 +19,7 @@ class Trend(Base):
     __tablename__ = "trends"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
+    title = Column(String, unique=True, index=True)
     domain = Column(String, index=True)  # AI, fintech, health, etc.
     velocity_score = Column(Float)  # TVS
     stage = Column(String)  # Emerging, Rising, Mainstream

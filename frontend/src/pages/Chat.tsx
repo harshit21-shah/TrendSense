@@ -1,165 +1,351 @@
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Trash2, Bot, User, Loader2, Sparkles } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import { useStore } from '../store/useStore'
-import { useSSE } from '../hooks/useSSE'
-import type { ChatMessage } from '../types'
+import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Send, 
+  Bot, 
+  User, 
+  Trash2, 
+  Sparkles, 
+  Download, 
+  Loader2, 
+  Copy, 
+  Check,
+  ChevronRight
+} from 'lucide-react';
+import { useTrendStore } from '../store/useTrendStore';
+import { useToastStore } from '../store/useToastStore';
+import { cn } from '../utils/cn';
+import ReactMarkdown from 'react-markdown';
 
-const SUGGESTIONS = [
-  { icon: '🤖', text: "What's emerging in AI infrastructure this week?" },
-  { icon: '💰', text: 'Which fintech trends should founders watch?' },
-  { icon: '🏥', text: 'What health tech signals are rising right now?' },
-  { icon: '📊', text: 'Compare AI and crypto trend velocity' },
-]
+const TypingIndicator = () => (
+  <div className="flex gap-2 p-4 rounded-3xl bg-surface/30 border border-border/5 w-fit">
+    <motion.div
+      animate={{ scale: [1, 1.2, 1] }}
+      transition={{ repeat: Infinity, duration: 1, delay: 0 }}
+      className="w-1.5 h-1.5 rounded-full bg-accent/40"
+    />
+    <motion.div
+      animate={{ scale: [1, 1.2, 1] }}
+      transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
+      className="w-1.5 h-1.5 rounded-full bg-accent/40"
+    />
+    <motion.div
+      animate={{ scale: [1, 1.2, 1] }}
+      transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
+      className="w-1.5 h-1.5 rounded-full bg-accent/40"
+    />
+  </div>
+);
 
-function Message({ msg }: { msg: ChatMessage }) {
-  const isUser = msg.role === 'user'
+const Chat: React.FC = () => {
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { chatHistory, addChatMessage, updateChatMessage, clearChatHistory } = useTrendStore();
+  const { addToast } = useToastStore();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory, isLoading]);
+
+  const suggestedQueries = [
+    "What are the high-velocity signals in Fintech?",
+    "Synthesize current AI infrastructure risks",
+    "Map product opportunities for edge-compute",
+    "Which trends are fading this week?",
+    "What emerging trends should I watch in biotech?",
+    "Compare AI infrastructure vs. AI application trends",
+  ];
+
+  const handleSend = async (text: string = input) => {
+    if (!text.trim() || text.trim().length < 3 || isLoading) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    addChatMessage(userMessage);
+    setInput('');
+    setIsLoading(true);
+
+    const assistantId = (Date.now() + 1).toString();
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userMessage.content }),
+      });
+
+      if (!response.ok) throw new Error('Failed to query AI');
+
+      addChatMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.replace('data: ', '').trim();
+              if (dataStr === '[DONE]') break;
+              
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.content) {
+                  updateChatMessage(assistantId, data.content);
+                }
+              } catch (e) {
+                console.error('Error parsing SSE data:', e);
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      addToast('Failed to get response. Please try again.', 'error');
+      addChatMessage({
+        id: assistantId,
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error while processing your request. Please check your connection and try again.",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClearHistory = () => {
+    if (window.confirm('Clear all chat history? This cannot be undone.')) {
+      clearChatHistory();
+      addToast('Chat history cleared', 'info');
+    }
+  };
+
+  const handleCopy = (id: string, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    addToast('Message copied to clipboard', 'success');
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleExport = () => {
+    const transcript = chatHistory
+      .map(m => `[${m.timestamp}] ${m.role.toUpperCase()}: ${m.content}`)
+      .join('\n\n');
+    const blob = new Blob([transcript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trendsense-chat-transcript-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast('Chat transcript exported successfully', 'success');
+  };
+
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-      className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5`}
-        style={isUser
-          ? { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }
-          : { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-        {isUser ? <User size={12} className="text-white" /> : <Bot size={12} style={{ color: '#818cf8' }} />}
-      </div>
-      <div className={`max-w-[82%] flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className="rounded-2xl px-4 py-3 text-[13px] leading-relaxed"
-          style={isUser
-            ? { background: 'linear-gradient(135deg, #6366f1, #7c3aed)', color: 'white', borderRadius: '16px 4px 16px 16px' }
-            : { background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', color: '#cbd5e1', borderRadius: '4px 16px 16px 16px' }}>
-          {isUser ? msg.content : (
-            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-p:text-slate-300 prose-strong:text-white prose-a:text-indigo-400 prose-code:text-indigo-300 prose-code:bg-white/[0.08] prose-code:px-1 prose-code:rounded prose-ul:my-1 prose-li:text-slate-300">
-              <ReactMarkdown>{msg.content || '▋'}</ReactMarkdown>
-            </div>
-          )}
-        </div>
-        {msg.grounded_in !== undefined && msg.grounded_in > 0 && (
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: '#475569' }}>
-            <Sparkles size={9} style={{ color: '#6366f1' }} />
-            Grounded in {msg.grounded_in} trend{msg.grounded_in !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-export function Chat() {
-  const { chatMessages, sessionId, addMessage, updateLastMessage, clearChat } = useStore()
-  const [input, setInput] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const { streamQuery } = useSSE()
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
-
-  const send = (question: string) => {
-    if (!question.trim() || streaming) return
-    setInput('')
-    setStreaming(true)
-
-    addMessage({ id: crypto.randomUUID(), role: 'user', content: question, timestamp: new Date() })
-    addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', timestamp: new Date() })
-
-    let acc = ''
-    streamQuery(question, sessionId,
-      chunk => { acc += chunk; updateLastMessage(acc) },
-      () => { setStreaming(false); setTimeout(() => inputRef.current?.focus(), 100) }
-    )
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col" style={{ height: 'calc(100vh - 56px)' }}>
+    <div className="max-w-3xl mx-auto flex flex-col h-full"  style={{ minHeight: 0 }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-5 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Trend Intelligence Chat</h1>
-          <p className="text-slate-600 text-xs mt-0.5">RAG-grounded answers from live trend data</p>
+      <div className="flex items-center justify-between py-2 px-1 shrink-0 border-b border-border/10">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-card bg-surface-raised border border-border/50 flex items-center justify-center">
+            <Bot size={16} className="text-accent" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 text-accent font-mono text-[10px] font-bold uppercase tracking-[0.15em]">
+              <Sparkles size={9} className="animate-pulse" />
+              <span>AI Research Assistant</span>
+            </div>
+            <h1 className="text-sm font-bold tracking-tight text-text-primary leading-tight">Intelligence Query</h1>
+          </div>
         </div>
-        {chatMessages.length > 0 && (
-          <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-slate-700 hover:text-red-400 transition-colors">
-            <Trash2 size={12} /> Clear chat
+        <div className="flex items-center gap-1">
+          {chatHistory.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="p-2 text-text-muted hover:text-text-primary hover:bg-surface-raised transition-all duration-150 rounded-btn border border-transparent hover:border-border/50 w-9 h-9 flex items-center justify-center"
+              title="Export transcript"
+              aria-label="Export conversation transcript"
+            >
+              <Download size={14} />
+            </button>
+          )}
+          <button
+            onClick={handleClearHistory}
+            aria-label="Clear conversation history"
+            className="p-2 text-text-muted hover:text-danger hover:bg-danger/5 transition-all duration-150 rounded-btn border border-transparent hover:border-danger/10 w-9 h-9 flex items-center justify-center"
+            title="Clear history"
+          >
+            <Trash2 size={14} />
           </button>
-        )}
+        </div>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
-        {chatMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-8 text-center">
-            <div>
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <Bot size={28} style={{ color: '#818cf8' }} />
-              </div>
-              <p className="text-slate-300 font-semibold text-lg mb-1">Ask about any trend</p>
-              <p className="text-slate-600 text-sm max-w-sm">
-                Answers are grounded in real-time signals from Reddit, HackerNews, and NewsAPI
-              </p>
+      {/* Messages Area */}
+      <div
+        className="flex-1 overflow-y-auto no-scrollbar space-y-4 px-1 min-h-0"
+        role="log"
+        aria-label="Conversation history"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {chatHistory.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-5 py-8">
+            <div className="w-14 h-14 rounded-2xl bg-surface-raised border border-border/50 flex items-center justify-center">
+              <Bot size={28} className="text-accent" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-              {SUGGESTIONS.map(s => (
-                <button key={s.text} onClick={() => send(s.text)}
-                  className="text-left px-4 py-3 rounded-xl text-xs text-slate-400 hover:text-slate-200 transition-all group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
+            <div className="space-y-1">
+              <h2 className="text-lg font-black text-text-primary tracking-tight">How can I assist your research?</h2>
+              <p className="text-text-secondary/60 max-w-sm mx-auto text-sm">Query the intelligence engine for trends, market analysis, or strategic insights.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+              {suggestedQueries.map((prompt, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSend(prompt)}
+                  disabled={isLoading}
+                  className="flex items-center justify-between p-3 rounded-xl bg-surface/30 border border-border/10 hover:border-accent/30 hover:bg-surface-raised transition-all group text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="mr-2">{s.icon}</span>{s.text}
+                  <span className="text-xs font-medium text-text-secondary group-hover:text-text-primary leading-snug">{prompt}</span>
+                  <ChevronRight size={14} className="text-text-muted/20 group-hover:text-accent transition-all shrink-0 ml-2" />
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          <AnimatePresence initial={false}>
-            {chatMessages.map(msg => <Message key={msg.id} msg={msg} />)}
-          </AnimatePresence>
-        )}
+          <>
+            {chatHistory.map((message) => (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                key={message.id}
+                className={cn(
+                  "flex gap-3 group",
+                  message.role === 'user' ? "flex-row-reverse" : ""
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                  message.role === 'user'
+                    ? "bg-text-primary text-background"
+                    : "bg-surface-raised border border-border/50 text-accent"
+                )}>
+                  {message.role === 'user' ? <User size={15} /> : <Bot size={15} />}
+                </div>
 
-        {/* Typing indicator */}
-        {streaming && chatMessages.at(-1)?.content === '' && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Loader2 size={12} style={{ color: '#818cf8' }} className="animate-spin" />
-            </div>
-            <div className="px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1"
-              style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {[0, 1, 2].map(i => (
-                <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#6366f1' }}
-                  animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1, 0.8] }}
-                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />
-              ))}
-            </div>
-          </div>
+                <div className={cn(
+                  "flex flex-col gap-1 max-w-[75%]",
+                  message.role === 'user' ? "items-end" : "items-start"
+                )}>
+                  <div className={cn(
+                    "px-4 py-2.5 rounded-2xl relative text-sm leading-relaxed w-fit",
+                    message.role === 'user'
+                      ? "bg-surface-raised text-text-primary rounded-tr-none border border-border/50"
+                      : "bg-surface/50 text-text-secondary rounded-tl-none border border-border/5"
+                  )}>
+                    {message.role === 'assistant' && (
+                      <button
+                        onClick={() => handleCopy(message.id, message.content)}
+                        className="absolute -right-9 top-0 p-2 text-text-muted/40 hover:text-text-primary transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                      >
+                        {copiedId === message.id ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                      </button>
+                    )}
+                    <div className="prose-chat max-w-none">
+                      <ReactMarkdown>{message.content || '...'}</ReactMarkdown>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted/40 px-1">
+                    {message.timestamp}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-xl bg-surface-raised border border-border/50 flex items-center justify-center text-accent shrink-0">
+                  <Bot size={15} />
+                </div>
+                <TypingIndicator />
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </>
         )}
-        <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="shrink-0">
-        <form onSubmit={e => { e.preventDefault(); send(input) }}
-          className="flex gap-2 p-2 rounded-2xl transition-all"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-            placeholder="Ask about trends, signals, investment opportunities..."
-            disabled={streaming}
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-300 placeholder-slate-700 focus:outline-none disabled:opacity-50"
+      {/* Input Area */}
+      <div className="shrink-0 pt-3 px-1">
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+          className="relative group"
+        >
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Ask about trends or opportunities..."
+            className="w-full bg-surface-raised border border-border/50 rounded-card py-3 pl-4 pr-12 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 focus:bg-surface-overlay transition-all duration-150 resize-none min-h-[48px] max-h-[140px]"
+            rows={1}
+            disabled={isLoading}
+            aria-label="Message input"
           />
-          <button type="submit" disabled={!input.trim() || streaming}
-            className="p-2.5 rounded-xl text-white transition-all disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
+          <div className="absolute right-2 bottom-2">
+            <button
+              type="submit"
+              disabled={!input.trim() || input.trim().length < 3 || isLoading}
+              title="Send (Enter)"
+              aria-label="Send message"
+              className={cn(
+                "p-2 rounded-btn transition-all duration-150 active:scale-90 w-9 h-9 flex items-center justify-center",
+                input.trim().length >= 3 && !isLoading
+                  ? "bg-accent text-white shadow-sm shadow-accent/30"
+                  : "bg-surface text-text-muted opacity-40 cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={15} strokeWidth={2.5} />
+              )}
+            </button>
+          </div>
         </form>
-        <p className="text-center text-[10px] text-slate-800 mt-2">
-          Powered by Groq Llama 3.1 70B · RAG over ChromaDB · Session-scoped memory
-        </p>
+        <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-text-muted">
+          <span><kbd className="px-1.5 py-0.5 bg-surface-raised rounded text-[9px] border border-border/50">Enter</kbd> send</span>
+          <span className="w-1 h-1 rounded-full bg-border/30" />
+          <span><kbd className="px-1.5 py-0.5 bg-surface-raised rounded text-[9px] border border-border/50">Shift+Enter</kbd> new line</span>
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default Chat;
