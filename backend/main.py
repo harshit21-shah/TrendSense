@@ -90,11 +90,18 @@ async def run_intelligence_pipeline():
         
         # Save results to DB
         from app.database import AsyncSessionLocal
+        from app.text_utils import normalize_trend_title
         async with AsyncSessionLocal() as session:
             for trend_data in final_state.get("validated_trends", []):
                 # Normalise keys — LLM may return capitalised variants
                 td = {k.lower(): v for k, v in trend_data.items()}
-                title = td.get("title", "Untitled")
+
+                # Fix title casing — LLM often returns all-lowercase
+                title = normalize_trend_title(td.get("title", "Untitled"))
+
+                # Fix domain casing inconsistency (ai -> AI, fintech -> Fintech, etc.)
+                domain_raw = td.get("domain", "Other").strip()
+                domain = "AI" if domain_raw.lower() == "ai" else domain_raw.title()
 
                 # Check if trend with this title already exists
                 stmt = select(Trend).where(Trend.title == title)
@@ -108,11 +115,12 @@ async def run_intelligence_pipeline():
                     except Exception:
                         sources = [s.strip() for s in sources.split(",") if s.strip()]
 
-                velocity_score = float(td.get("s_tvs", td.get("velocity_score", 0.0)))
+                # Clamp TVS to valid range 0-100
+                velocity_score = min(100.0, max(0.0, float(td.get("s_tvs", td.get("velocity_score", 0.0)))))
 
                 if existing_trend:
                     # Update existing trend
-                    existing_trend.domain = td.get("domain", existing_trend.domain)
+                    existing_trend.domain = domain
                     existing_trend.tvs_delta = velocity_score - existing_trend.velocity_score
                     existing_trend.velocity_score = velocity_score
                     existing_trend.stage = td.get("stage", existing_trend.stage)
@@ -125,7 +133,7 @@ async def run_intelligence_pipeline():
                     # Create new trend
                     new_trend = Trend(
                         title=title,
-                        domain=td.get("domain", "Other"),
+                        domain=domain,
                         velocity_score=velocity_score,
                         stage=td.get("stage", "Emerging"),
                         summary=td.get("summary", ""),

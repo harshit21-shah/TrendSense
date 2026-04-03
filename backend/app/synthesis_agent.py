@@ -31,7 +31,7 @@ class SynthesisAgent:
         
         self.prompt = ChatPromptTemplate.from_template("""
 You are a Senior Venture Capital Analyst and Product Strategist.
-Analyze the following emerging signals from Reddit and HackerNews and synthesize them into high-value trend intelligence.
+Analyze the following emerging signals from Reddit, HackerNews, and tech news publications and synthesize them into high-value trend intelligence.
 
 Signals:
 {signals}
@@ -39,9 +39,9 @@ Signals:
 Return ONLY a valid JSON array (no markdown, no explanation) with 5-8 trend objects.
 Each object MUST use exactly these lowercase keys:
 {{
-  "title": "concise trend title",
+  "title": "concise trend title (Title Case, 3-7 words)",
   "domain": "AI | Fintech | Biotech | Health | Crypto | Climate | Other",
-  "s_tvs": <number 1-100>,
+  "s_tvs": <integer 1-100>,
   "stage": "Emerging | Rising | Mainstream",
   "summary": "2-3 sentence technical overview",
   "investment_thesis": "why this matters for capital allocation",
@@ -49,6 +49,11 @@ Each object MUST use exactly these lowercase keys:
   "risk_assessment": "hype vs reality check",
   "sources": ["url1", "url2"]
 }}
+
+Rules:
+- s_tvs MUST be between 1 and 100, never exceed 100
+- title MUST be in Title Case (e.g. "Agentic AI Frameworks", not "agentic ai frameworks")
+- domain MUST be exactly one of the listed values, properly capitalized
 """)
 
     async def synthesize(self, state: SynthesisState) -> SynthesisState:
@@ -58,10 +63,11 @@ Each object MUST use exactly these lowercase keys:
         logger.info("Running Synthesis Agent...")
         
         try:
-            # Format signals for LLM - limit to top 15 to reduce token usage
+            # Format signals for LLM - limit to top 25 to cover more sources
             formatted_signals = "\n".join([
                 f"- [{s['source']}] {s['title']} (Sentiment: {s['sentiment_label']}, Score: {s['score']})"
-                for s in state["processed_signals"][:15]
+                + (f" [domain_hint: {s.get('domain_hint', '')}]" if s.get('domain_hint') else "")
+                for s in state["processed_signals"][:25]
             ])
             
             chain = self.prompt | self.llm | self.parser

@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, END
 from .reddit_service import reddit_service
 from .hn_service import hn_service
 from .news_service import news_service
+from .rss_service import rss_service
 from .sentiment_agent import sentiment_agent_node
 from .synthesis_agent import synthesis_agent
 from .rag_agent import rag_agent
@@ -34,15 +35,16 @@ async def fetch_signals_node(state: AgentState) -> AgentState:
 
     # Fetch all sources in parallel
     reddit_tasks = [reddit_service.fetch_subreddit_rss(sub) for sub in selected_subs]
-    reddit_results, hn_stories, news_articles = await asyncio.gather(
+    reddit_results, hn_stories, news_articles, rss_articles = await asyncio.gather(
         asyncio.gather(*reddit_tasks),
         hn_service.fetch_top_stories(),
         news_service.fetch_all_categories(),
+        rss_service.fetch_all(),
     )
     reddit_posts = [item for sublist in reddit_results for item in sublist]
 
     # Deduplicate all signals by URL
-    all_signals = reddit_posts + hn_stories + news_articles
+    all_signals = reddit_posts + hn_stories + news_articles + rss_articles
     unique_signals = []
     seen_urls = set()
     
@@ -59,7 +61,7 @@ async def fetch_signals_node(state: AgentState) -> AgentState:
                 seen_urls.add(title)
 
     state["raw_signals"] = unique_signals
-    logger.info(f"Fetched {len(reddit_posts)} Reddit, {len(hn_stories)} HN, {len(news_articles)} News signals. Unique: {len(unique_signals)}")
+    logger.info(f"Fetched {len(reddit_posts)} Reddit, {len(hn_stories)} HN, {len(news_articles)} NewsAPI, {len(rss_articles)} RSS signals. Unique: {len(unique_signals)}")
     return state
 
 def create_trend_graph():
