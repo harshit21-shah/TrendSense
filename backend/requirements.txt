@@ -1,32 +1,31 @@
-# Core
-fastapi==0.115.6
-uvicorn[standard]==0.32.1
-pydantic-settings==2.6.1
-python-dotenv==1.0.1
-structlog==24.4.0
+# Core web framework
+fastapi>=0.110.0,<1.0.0
+uvicorn[standard]>=0.29.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+structlog>=24.0.0
 
 # Database
-sqlalchemy==2.0.36
-aiosqlite==0.20.0
-asyncpg==0.30.0
+sqlalchemy>=2.0.0
+aiosqlite>=0.20.0
 
-# LangChain / LangGraph agents
-langgraph==0.2.56
-langchain==0.3.14
-langchain-core==0.3.28
-langchain-groq==0.2.3
+# LangChain / LangGraph multi-agent pipeline
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-groq>=0.1.0
 
 # Vector store
-chromadb==0.5.23
+chromadb>=0.4.0
 
 # Scheduler
-apscheduler==3.10.4
+apscheduler>=3.10.0
 
-# HTTP client
-httpx==0.27.2
+# HTTP client (used for all external APIs)
+httpx>=0.27.0
 
-# NLP / sentiment
-textblob==0.18.0
-vaderSentiment==3.3.2
-scikit-learn==1.5.2
-nltk==3.9.1
+# NLP / sentiment analysis
+textblob>=0.18.0
+vaderSentiment>=3.3.2
+scikit-learn>=1.4.0
+nltk>=3.8.0
