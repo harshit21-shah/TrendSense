@@ -23,15 +23,12 @@ function parseHistoricalAccuracy(raw: string): string {
   if (!raw) return '';
   try {
     const obj = JSON.parse(raw) as Record<string, unknown>;
-    // #region agent log
-    fetch('http://127.0.0.1:7736/ingest/37c79ae8-e8d9-4d3d-9f7a-66517a31cd62',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ecb2d4'},body:JSON.stringify({sessionId:'ecb2d4',hypothesisId:'A',location:'TrendDrawer.tsx:parseHistoricalAccuracy',message:'historical_accuracy was JSON (old data in DB)',data:{keys:Object.keys(obj)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (obj.refined_summary && typeof obj.refined_summary === 'string') return obj.refined_summary;
     if (obj.summary && typeof obj.summary === 'string') return obj.summary;
     const score = obj.historical_accuracy_score;
     if (typeof score === 'number') return `Accuracy score: ${score}/100`;
   } catch {
-    // not JSON — plain text (correct, post-fix)
+    // plain text — correct post-fix format
   }
   return raw;
 }
@@ -180,7 +177,6 @@ export function TrendDrawer({ trendId, onClose }: TrendDrawerProps) {
 
                 {/* Scrollable body */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {/* #region agent log */}{(() => { fetch('http://127.0.0.1:7736/ingest/37c79ae8-e8d9-4d3d-9f7a-66517a31cd62',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ecb2d4'},body:JSON.stringify({sessionId:'ecb2d4',hypothesisId:'E',location:'TrendDrawer.tsx:body',message:'trend fields presence',data:{id:trend.id,has_investment:!!trend.investment_thesis,has_product:!!trend.product_opportunity,has_risk:!!trend.risk_assessment,has_accuracy:!!trend.historical_accuracy,velocity_history_len:(trend.velocity_history||[]).length},timestamp:Date.now()})}).catch(()=>{}); return null; })()}{/* #endregion */}
                   <p className="text-sm text-zinc-300 leading-relaxed">{trend.summary}</p>
 
                   {trend.investment_thesis && (

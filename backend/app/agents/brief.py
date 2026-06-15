@@ -61,17 +61,6 @@ async def brief_agent_node(state: AgentState) -> AgentState:
         response = await chain.ainvoke({"date": date_str, "trends": trends_text})
         content = response.content if hasattr(response, "content") else str(response)
 
-        # #region agent log
-        try:
-            import json as _j, time as _t
-            with open('debug-ecb2d4.log', 'a', encoding='utf-8') as _f:
-                preview = content[:300] if content else ""
-                starts_with_markdown = content.lstrip().startswith("#") if content else False
-                _f.write(_j.dumps({"sessionId":"ecb2d4","hypothesisId":"C","location":"brief.py:brief_agent_node","message":"Brief LLM output","data":{"length":len(content),"starts_with_markdown":starts_with_markdown,"preview":preview},"timestamp":int(_t.time()*1000)})+"\n")
-        except Exception:
-            pass
-        # #endregion
-
         # Strip any preamble before the first markdown heading
         if content and not content.lstrip().startswith("#"):
             match = content.find("## ")

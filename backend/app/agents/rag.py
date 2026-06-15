@@ -73,15 +73,6 @@ class RAGValidationAgent:
         historical = chroma_service.query_similar(query_text, n_results=3)
         context = "\n".join(historical.get("documents", [[]])[0]) or "No historical context."
 
-        # #region agent log
-        try:
-            import json as _j, time as _t
-            with open('debug-ecb2d4.log', 'a', encoding='utf-8') as _f:
-                _f.write(_j.dumps({"sessionId":"ecb2d4","hypothesisId":"B","location":"rag.py:validate_trend","message":"RAG LLM call start","data":{"title":trend.get("title"),"has_context":context!="No historical context."},"timestamp":int(_t.time()*1000)})+"\n")
-        except Exception:
-            pass
-        # #endregion
-
         try:
             llm = _get_llm()
             chain = _PROMPT | llm
@@ -91,16 +82,6 @@ class RAGValidationAgent:
             })
             raw = response.content if hasattr(response, "content") else response
             
-            # #region agent log
-            try:
-                import json as _j, time as _t
-                with open('debug-ecb2d4.log', 'a', encoding='utf-8') as _f:
-                    raw_preview = str(raw)[:200] if raw else ""
-                    _f.write(_j.dumps({"sessionId":"ecb2d4","hypothesisId":"B","location":"rag.py:validate_trend","message":"RAG LLM raw response","data":{"raw_preview":raw_preview,"is_json_parseable":True},"timestamp":int(_t.time()*1000)})+"\n")
-            except Exception:
-                pass
-            # #endregion
-
             if isinstance(raw, str):
                 try:
                     raw = json.loads(raw)
