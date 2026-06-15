@@ -10,7 +10,7 @@ from sqlalchemy import select, text, or_, func
 import uvicorn
 import asyncio
 
-from app.database import engine, Base, get_db
+from app.database import engine, Base, get_db, AsyncSessionLocal
 from app.models import Trend, DailyBrief, Notification, PipelineRun
 from app.config import settings
 from app.logger import logger
@@ -76,6 +76,20 @@ async def startup():
         logger.error("Could not connect to database after 10 attempts.")
 
     start_scheduler()
+
+    # Auto-run pipeline on first boot if DB is empty and API key is configured
+    if settings.GROQ_API_KEY:
+        try:
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(select(Trend).limit(1))
+                has_trends = result.scalar_one_or_none() is not None
+            if not has_trends:
+                logger.info("Empty database detected on startup — auto-running initial pipeline...")
+                asyncio.create_task(run_intelligence_pipeline())
+        except Exception as e:
+            logger.warning(f"Could not check DB for auto-seed: {e}")
+    else:
+        logger.warning("GROQ_API_KEY not set — skipping auto-pipeline. Set it in environment to enable.")
 
 
 @app.on_event("shutdown")
