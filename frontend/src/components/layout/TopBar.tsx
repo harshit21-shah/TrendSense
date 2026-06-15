@@ -33,7 +33,7 @@ export function TopBar() {
 
   // Show meaningful stats from live trend count (not pipeline run column which can be 0)
   const trendCount = trends?.length ?? 0;
-  const lastRunTime = pipeline?.last_run?.created_at;
+  const lastRunTime = pipeline?.last_run?.completed_at;
 
   return (
     <header className="flex items-center h-[52px] px-4 border-b border-zinc-800/40 bg-zinc-950/90 backdrop-blur-sm shrink-0 gap-3">

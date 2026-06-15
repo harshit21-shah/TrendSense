@@ -63,7 +63,7 @@ export function TrendRow({ trend, isSelected }: TrendRowProps) {
         <StageBadge stage={trend.stage} />
       </div>
 
-      <DeltaBadge delta={trend.tvs_delta} />
+      <DeltaBadge delta={trend.tvs_delta ?? 0} />
 
       <div className="hidden md:block shrink-0">
         <Sparkline data={trend.velocity_history} width={64} height={20} />

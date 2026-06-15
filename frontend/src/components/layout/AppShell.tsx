@@ -25,8 +25,6 @@ function PipelineWatcher() {
     if (prevRunning.current === true && data?.running === false) {
       const status = (data as PipelineStatus).last_result?.status;
       const errors = (data as PipelineStatus).last_result?.errors ?? [];
-      const saved = (data as PipelineStatus).last_run?.trends_saved ?? 0;
-
       const signals = (data as PipelineStatus).last_run?.signals_fetched ?? 0;
       if (status === 'completed' && errors.length === 0) {
         const detail = signals > 0 ? ` · ${signals} signals processed` : '';

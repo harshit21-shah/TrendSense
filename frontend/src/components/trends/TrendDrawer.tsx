@@ -110,7 +110,7 @@ export function TrendDrawer({ trendId, onClose }: TrendDrawerProps) {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <DomainBadge domain={trend.domain} />
                       <StageBadge stage={trend.stage} />
-                      <DeltaBadge delta={trend.tvs_delta} />
+                      <DeltaBadge delta={trend.tvs_delta ?? 0} />
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 pt-0.5">
