@@ -29,7 +29,8 @@ export function Sparkline({ data, width = 72, height = 24, fill = false, color }
 
   const last = points[points.length - 1].y;
   const first = points[0].y;
-  const lineColor = color ?? (first > last ? '#10b981' : first < last ? '#f59e0b' : '#52525b');
+  // first/last are y-coords: higher y = lower score. first>last means score rose → green; fell → rose
+  const lineColor = color ?? (first > last ? '#10b981' : first < last ? '#f43f5e' : '#52525b');
 
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const fillPath = fill ? `${d} L${width},${height} L0,${height} Z` : undefined;
