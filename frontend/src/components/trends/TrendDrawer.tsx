@@ -17,6 +17,22 @@ import { cn } from '../../lib/cn';
 import { formatDateTime } from '../../lib/utils';
 import { toTitleCase } from '../../lib/text';
 
+/** The RAG agent sometimes stores historical_accuracy as a JSON string.
+ *  Extract the human-readable summary from it, or return the raw string if it's already plain text. */
+function parseHistoricalAccuracy(raw: string): string {
+  if (!raw) return '';
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    if (obj.refined_summary && typeof obj.refined_summary === 'string') return obj.refined_summary;
+    if (obj.summary && typeof obj.summary === 'string') return obj.summary;
+    const score = obj.historical_accuracy_score;
+    if (typeof score === 'number') return `Accuracy score: ${score}/100`;
+  } catch {
+    // not JSON — return as-is
+  }
+  return raw;
+}
+
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <div className="rounded-lg bg-zinc-900/60 ring-1 ring-zinc-800/50 p-3.5">
@@ -190,7 +206,7 @@ export function TrendDrawer({ trendId, onClose }: TrendDrawerProps) {
                   {trend.historical_accuracy && (
                     <Section icon={<Award className="h-4 w-4" />} title="Historical Accuracy">
                       <div className="ts-prose text-sm">
-                        <ReactMarkdown>{trend.historical_accuracy}</ReactMarkdown>
+                        <ReactMarkdown>{parseHistoricalAccuracy(trend.historical_accuracy)}</ReactMarkdown>
                       </div>
                     </Section>
                   )}

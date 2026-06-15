@@ -1,4 +1,4 @@
-import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
 interface TVSBadgeProps {
@@ -38,11 +38,10 @@ interface DeltaBadgeProps {
 }
 
 export function DeltaBadge({ delta }: DeltaBadgeProps) {
-  if (delta == null || delta === 0) {
+  if (delta == null || Math.abs(delta) < 0.05) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[11px] font-mono text-zinc-700 tabular-nums w-14 justify-end">
-        <Minus className="h-2.5 w-2.5" />
-        <span>0.0</span>
+      <span className="inline-flex items-center text-[11px] font-mono text-zinc-700 tabular-nums w-14 justify-end">
+        <span>—</span>
       </span>
     );
   }
