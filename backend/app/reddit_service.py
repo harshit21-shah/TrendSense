@@ -21,9 +21,11 @@ from .text_utils import normalize_trend_title
 
 # ── Global concurrency guard for unauthenticated requests ───────────────────
 # Reddit returns 429 if more than ~1 concurrent RSS request comes from same IP.
+# Cloud IPs (Render/Railway/AWS) are soft-banned — fail fast, don't waste time.
 _REDDIT_SEMAPHORE = asyncio.Semaphore(1)
-_REDDIT_REQ_DELAY = 3.0          # seconds between unauthenticated requests
-_REDDIT_RETRY_DELAYS = [5, 15, 30]  # exponential-ish backoff on 429
+_REDDIT_REQ_DELAY = 0.5          # seconds between requests (cloud IPs get blocked anyway)
+_REDDIT_RETRY_DELAYS = [3]       # single short retry — if cloud IP is banned, waiting 30s won't help
+_reddit_consecutive_429s = 0     # track consecutive 429s to bail early
 
 TIMEOUT = 20.0
 RSS_USER_AGENT = (
@@ -146,12 +148,17 @@ class RedditRSSService:
     async def _fetch_rss(
         self, subreddit: str, domain_hint: Optional[str], limit: int
     ) -> List[Dict]:
+        global _reddit_consecutive_429s
+        # If this IP has been blocked 3+ times in a row, stop wasting time on Reddit
+        if _reddit_consecutive_429s >= 3:
+            logger.warning(f"Reddit: IP appears blocked ({_reddit_consecutive_429s} consecutive 429s) — skipping r/{subreddit}")
+            return []
+
         url = f"https://www.reddit.com/r/{subreddit}/.rss"
         headers = {
             "User-Agent": RSS_USER_AGENT,
             "Accept": "application/rss+xml, application/xml, */*",
         }
-        # Hold the semaphore for the entire request to ensure sequential access
         async with _REDDIT_SEMAPHORE:
             for attempt, wait in enumerate([0] + _REDDIT_RETRY_DELAYS):
                 if wait:
@@ -161,11 +168,14 @@ class RedditRSSService:
                     async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
                         response = await client.get(url, headers=headers)
                     if response.status_code == 429:
+                        _reddit_consecutive_429s += 1
                         if attempt < len(_REDDIT_RETRY_DELAYS):
-                            continue  # retry
-                        logger.error(f"Reddit RSS r/{subreddit}: exhausted retries (429)")
+                            continue
+                        logger.error(f"Reddit RSS r/{subreddit}: exhausted retries (429) — consecutive blocks: {_reddit_consecutive_429s}")
                         return []
                     response.raise_for_status()
+                    # Success — reset the consecutive counter
+                    _reddit_consecutive_429s = 0
                     root = ET.fromstring(response.content)
                     ns = {"atom": "http://www.w3.org/2005/Atom"}
                     signals = []
@@ -191,11 +201,11 @@ class RedditRSSService:
                             "domain_hint": hint,
                             "created_at": 0,
                         })
-                    # Polite gap before releasing semaphore
                     await asyncio.sleep(_REDDIT_REQ_DELAY)
                     return signals
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 429:
+                        _reddit_consecutive_429s += 1
                         if attempt < len(_REDDIT_RETRY_DELAYS):
                             continue
                     logger.error(f"Reddit RSS error r/{subreddit}: {e}")
@@ -216,6 +226,8 @@ class RedditRSSService:
 
     async def fetch_for_domains(self, domains: List[str]) -> List[Dict]:
         """Fetch subreddits for each domain, rate-limited (sequential via semaphore)."""
+        global _reddit_consecutive_429s
+        _reddit_consecutive_429s = 0  # reset per-pipeline-run
         tasks = []
         for domain in domains:
             # Use the slim map (2 subs per domain) to stay within rate limits
