@@ -1,351 +1,274 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Send, 
-  User, 
-  Trash2, 
-  Sparkles, 
-  Download, 
-  Loader2, 
-  Copy, 
-  Check,
-  ChevronRight
-} from 'lucide-react';
-import { useTrendStore } from '../store/useTrendStore';
-import { useToastStore } from '../store/useToastStore';
-import { cn } from '../utils/cn';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { KeyboardEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Send, RotateCcw, User, Sparkles, StopCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import shrutiImage from '/shruti.png';
+import { getChatSuggestions, queryTrends } from '../api';
+import { useChatStore } from '../store/useChatStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { cn } from '../lib/cn';
 
-const TypingIndicator = () => (
-  <div className="flex gap-2 p-4 rounded-3xl bg-surface/30 border border-border/5 w-fit">
-    <motion.div
-      animate={{ scale: [1, 1.2, 1] }}
-      transition={{ repeat: Infinity, duration: 1, delay: 0 }}
-      className="w-1.5 h-1.5 rounded-full bg-accent/40"
-    />
-    <motion.div
-      animate={{ scale: [1, 1.2, 1] }}
-      transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
-      className="w-1.5 h-1.5 rounded-full bg-accent/40"
-    />
-    <motion.div
-      animate={{ scale: [1, 1.2, 1] }}
-      transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
-      className="w-1.5 h-1.5 rounded-full bg-accent/40"
-    />
-  </div>
-);
+export default function Chat() {
+  useDocumentTitle('Ava');
+  const { messages, isStreaming, addMessage, appendToLastMessage, setStreaming, clearMessages } =
+    useChatStore();
 
-const Chat: React.FC = () => {
+  const { data: suggestions = [] } = useQuery({
+    queryKey: ['chat-suggestions'],
+    queryFn: getChatSuggestions,
+    staleTime: 5 * 60_000,
+  });
+
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const { chatHistory, addChatMessage, updateChatMessage, clearChatHistory } = useTrendStore();
-  const { addToast } = useToastStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const isAtBottomRef = useRef(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Abort any in-flight stream and reset isStreaming when navigating away
   useEffect(() => {
-    scrollToBottom();
-  }, [chatHistory, isLoading]);
-
-  const suggestedQueries = [
-    "What are the high-velocity signals in Fintech?",
-    "Synthesize current AI infrastructure risks",
-    "Map product opportunities for edge-compute",
-    "Which trends are fading this week?",
-    "What emerging trends should I watch in biotech?",
-    "Compare AI infrastructure vs. AI application trends",
-  ];
-
-  const handleSend = async (text: string = input) => {
-    if (!text.trim() || text.trim().length < 3 || isLoading) return;
-
-    const userMessage = {
-      id: Date.now().toString(),
-      role: 'user' as const,
-      content: text.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    return () => {
+      abortRef.current?.abort();
+      // Reset streaming state so input isn't stuck disabled on return
+      setStreaming(false);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    addChatMessage(userMessage);
-    setInput('');
-    setIsLoading(true);
-
-    const assistantId = (Date.now() + 1).toString();
-    
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userMessage.content }),
-      });
-
-      if (!response.ok) throw new Error('Failed to query AI');
-
-      addChatMessage({
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.replace('data: ', '').trim();
-              if (dataStr === '[DONE]') break;
-              
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.content) {
-                  updateChatMessage(assistantId, data.content);
-                }
-              } catch (e) {
-                console.error('Error parsing SSE data:', e);
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      addToast('Failed to get response. Please try again.', 'error');
-      addChatMessage({
-        id: assistantId,
-        role: 'assistant',
-        content: "I'm sorry, I encountered an error while processing your request. Please check your connection and try again.",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
-    } finally {
-      setIsLoading(false);
+  // Only auto-scroll when user is already at the bottom
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+  }, [messages]);
+
+  const handleContainerScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  const handleClearHistory = () => {
-    if (window.confirm('Clear all chat history? This cannot be undone.')) {
-      clearChatHistory();
-      addToast('Chat history cleared', 'info');
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  };
+
+  const handleSend = useCallback(
+    async (question: string) => {
+      const q = question.trim();
+      if (!q || isStreaming) return;
+
+      // Abort any in-flight request
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
+      setInput('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      isAtBottomRef.current = true;
+
+      addMessage({ role: 'user', content: q });
+      addMessage({ role: 'assistant', content: '' });
+      setStreaming(true);
+
+      await queryTrends(
+        q,
+        (chunk) => appendToLastMessage(chunk),
+        (err) => appendToLastMessage(`\n\n*Error: ${err}*`),
+        abortRef.current.signal,
+      );
+      setStreaming(false);
+    },
+    [isStreaming, addMessage, appendToLastMessage, setStreaming],
+  );
+
+  const handleClearMessages = () => {
+    // Abort stream before clearing — prevents ghost messages
+    abortRef.current?.abort();
+    abortRef.current = null;
+    clearMessages();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(input);
     }
-  };
-
-  const handleCopy = (id: string, content: string) => {
-    navigator.clipboard.writeText(content);
-    setCopiedId(id);
-    addToast('Message copied to clipboard', 'success');
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const handleExport = () => {
-    const transcript = chatHistory
-      .map(m => `[${m.timestamp}] ${m.role.toUpperCase()}: ${m.content}`)
-      .join('\n\n');
-    const blob = new Blob([transcript], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trendsense-chat-transcript-${new Date().toISOString().slice(0,10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    addToast('Chat transcript exported successfully', 'success');
   };
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col h-full"  style={{ minHeight: 0 }}>
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between py-2 px-1 shrink-0 border-b border-border/10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-card bg-surface-raised border border-border/50 flex items-center justify-center overflow-hidden">
-            <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/50 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-violet-600/20 ring-1 ring-violet-500/30 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-violet-400" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5 text-accent font-mono text-[10px] font-bold uppercase tracking-[0.15em]">
-              <Sparkles size={9} className="animate-pulse" />
-              <span>Shruti - AI Research Assistant</span>
-            </div>
-            <h1 className="text-sm font-bold tracking-tight text-text-primary leading-tight">Intelligence Query</h1>
+            <h2 className="text-sm font-semibold text-zinc-100">Ava</h2>
+            <p className="text-xs text-zinc-500">AI Trend Analyst · grounded in live signal data</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {chatHistory.length > 0 && (
-            <button
-              onClick={handleExport}
-              className="p-2 text-text-muted hover:text-text-primary hover:bg-surface-raised transition-all duration-150 rounded-btn border border-transparent hover:border-border/50 w-9 h-9 flex items-center justify-center"
-              title="Export transcript"
-              aria-label="Export conversation transcript"
-            >
-              <Download size={14} />
-            </button>
-          )}
+        {messages.length > 0 && (
           <button
-            onClick={handleClearHistory}
-            aria-label="Clear conversation history"
-            className="p-2 text-text-muted hover:text-danger hover:bg-danger/5 transition-all duration-150 rounded-btn border border-transparent hover:border-danger/10 w-9 h-9 flex items-center justify-center"
-            title="Clear history"
+            onClick={handleClearMessages}
+            className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
           >
-            <Trash2 size={14} />
+            <RotateCcw className="h-3.5 w-3.5" />
+            New conversation
           </button>
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <div
-        className="flex-1 overflow-y-auto no-scrollbar space-y-4 px-1 min-h-0"
-        role="log"
-        aria-label="Conversation history"
-        aria-live="polite"
-        aria-atomic="false"
-      >
-        {chatHistory.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center space-y-5 py-8">
-            <div className="w-14 h-14 rounded-2xl bg-surface-raised border border-border/50 flex items-center justify-center overflow-hidden">
-              <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-lg font-black text-text-primary tracking-tight">Hi, I'm Shruti! How can I help?</h2>
-              <p className="text-text-secondary/60 max-w-sm mx-auto text-sm">Ask me about trends, market analysis, or strategic insights.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
-              {suggestedQueries.map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSend(prompt)}
-                  disabled={isLoading}
-                  className="flex items-center justify-between p-3 rounded-xl bg-surface/30 border border-border/10 hover:border-accent/30 hover:bg-surface-raised transition-all group text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="text-xs font-medium text-text-secondary group-hover:text-text-primary leading-snug">{prompt}</span>
-                  <ChevronRight size={14} className="text-text-muted/20 group-hover:text-accent transition-all shrink-0 ml-2" />
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-            {chatHistory.map((message) => (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                key={message.id}
-                className={cn(
-                  "flex gap-3 group",
-                  message.role === 'user' ? "flex-row-reverse" : ""
-                )}
-              >
-                <div className={cn(
-                  "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
-                  message.role === 'user'
-                    ? "bg-text-primary text-background"
-                    : "bg-surface-raised border border-border/50 text-accent overflow-hidden"
-                )}>
-                  {message.role === 'user' ? <User size={15} /> : <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />}
-                </div>
-
-                <div className={cn(
-                  "flex flex-col gap-1 max-w-[75%]",
-                  message.role === 'user' ? "items-end" : "items-start"
-                )}>
-                  <div className={cn(
-                    "px-4 py-2.5 rounded-2xl relative text-sm leading-relaxed w-fit",
-                    message.role === 'user'
-                      ? "bg-surface-raised text-text-primary rounded-tr-none border border-border/50"
-                      : "bg-surface/50 text-text-secondary rounded-tl-none border border-border/5"
-                  )}>
-                    {message.role === 'assistant' && (
-                      <button
-                        onClick={() => handleCopy(message.id, message.content)}
-                        className="absolute -right-9 top-0 p-2 text-text-muted/40 hover:text-text-primary transition-colors duration-150 opacity-0 group-hover:opacity-100"
-                      >
-                        {copiedId === message.id ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-                      </button>
-                    )}
-                    <div className="prose-chat max-w-none">
-                      <ReactMarkdown>{message.content || '...'}</ReactMarkdown>
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted/40 px-1">
-                    {message.timestamp}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-xl bg-surface-raised border border-border/50 flex items-center justify-center text-accent shrink-0 overflow-hidden">
-                  <img src={shrutiImage} alt="Shruti AI" className="w-full h-full object-cover" />
-                </div>
-                <TypingIndicator />
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="shrink-0 pt-3 px-1">
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          className="relative group"
-        >
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Ask about trends or opportunities..."
-            className="w-full bg-surface-raised border border-border/50 rounded-card py-3 pl-4 pr-12 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 focus:bg-surface-overlay transition-all duration-150 resize-none min-h-[48px] max-h-[140px]"
-            rows={1}
-            disabled={isLoading}
-            aria-label="Message input"
-          />
-          <div className="absolute right-2 bottom-2">
-            <button
-              type="submit"
-              disabled={!input.trim() || input.trim().length < 3 || isLoading}
-              title="Send (Enter)"
-              aria-label="Send message"
-              className={cn(
-                "p-2 rounded-btn transition-all duration-150 active:scale-90 w-9 h-9 flex items-center justify-center",
-                input.trim().length >= 3 && !isLoading
-                  ? "bg-accent text-white shadow-sm shadow-accent/30"
-                  : "bg-surface text-text-muted opacity-40 cursor-not-allowed"
-              )}
-            >
-              {isLoading ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Send size={15} strokeWidth={2.5} />
-              )}
-            </button>
+      {/* Messages */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleContainerScroll}
+        className="flex-1 overflow-y-auto px-6 py-6"
+      >
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-6 max-w-lg mx-auto text-center">
+            <div className="w-16 h-16 rounded-2xl bg-violet-600/15 ring-1 ring-violet-500/25 flex items-center justify-center">
+              <Sparkles className="h-7 w-7 text-violet-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-zinc-200 mb-2">Ask Ava</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                I analyze emerging technology trends from live pipeline data. Ask about investment
+                theses, product opportunities, competitive dynamics, or what's breaking out in any
+                domain.
+              </p>
+            </div>
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSend(s)}
+                    className="px-3 py-2 text-sm text-zinc-300 bg-zinc-800/80 hover:bg-zinc-700 rounded-lg ring-1 ring-zinc-700/60 transition-colors text-left"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </form>
-        <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-text-muted">
-          <span><kbd className="px-1.5 py-0.5 bg-surface-raised rounded text-[9px] border border-border/50">Enter</kbd> send</span>
-          <span className="w-1 h-1 rounded-full bg-border/30" />
-          <span><kbd className="px-1.5 py-0.5 bg-surface-raised rounded text-[9px] border border-border/50">Shift+Enter</kbd> new line</span>
+        ) : (
+          <div className="space-y-6 max-w-3xl mx-auto">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}
+              >
+                {/* Avatar */}
+                <div
+                  className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                    msg.role === 'user'
+                      ? 'bg-zinc-700 ring-1 ring-zinc-600'
+                      : 'bg-violet-600/20 ring-1 ring-violet-500/35',
+                  )}
+                >
+                  {msg.role === 'user' ? (
+                    <User className="h-3.5 w-3.5 text-zinc-300" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                  )}
+                </div>
+
+                {/* Bubble */}
+                <div
+                  className={cn(
+                    'max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed',
+                    msg.role === 'user'
+                      ? 'bg-violet-600/20 text-zinc-100 ring-1 ring-violet-500/20'
+                      : 'bg-zinc-800/60 ring-1 ring-zinc-700/40',
+                  )}
+                >
+                  {msg.role === 'assistant' ? (
+                    msg.content ? (
+                      <div className="ts-prose text-sm">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-1" aria-label="Thinking…">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '0ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '150ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '300ms' }}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-zinc-100">{msg.content}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="px-6 pb-5 pt-3 border-t border-zinc-800/40 shrink-0">
+        <div className="flex items-end gap-2.5 bg-zinc-900/80 ring-1 ring-zinc-800 rounded-xl px-3.5 py-2.5 focus-within:ring-violet-500/30 transition-all max-w-3xl mx-auto">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoResize(e.target);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about trends, investment theses, or market signals…"
+            rows={1}
+            disabled={isStreaming}
+            aria-label="Chat input"
+            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none resize-none leading-relaxed disabled:opacity-40 py-0.5"
+            style={{ maxHeight: '8rem' }}
+          />
+          {isStreaming ? (
+            <button
+              onClick={() => { abortRef.current?.abort(); setStreaming(false); }}
+              className="shrink-0 w-7 h-7 rounded-md bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+              aria-label="Stop generation"
+            >
+              <StopCircle className="h-3.5 w-3.5 text-zinc-400" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleSend(input)}
+              disabled={!input.trim()}
+              className="shrink-0 w-7 h-7 rounded-md bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+              aria-label="Send message"
+            >
+              <Send className="h-3 w-3 text-white" />
+            </button>
+          )}
         </div>
+        <p className="text-[10px] text-zinc-700 mt-1.5 text-center max-w-3xl mx-auto">
+          <kbd className="font-mono">Shift+Enter</kbd> for new line
+          {isStreaming && <span className="ml-3 text-violet-600 animate-pulse">Generating…</span>}
+        </p>
       </div>
     </div>
   );
-};
-
-export default Chat;
+}

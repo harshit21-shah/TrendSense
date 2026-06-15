@@ -1,72 +1,23 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Home, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
-const NotFound: React.FC = () => {
-  const navigate = useNavigate();
-
+export default function NotFound() {
+  useDocumentTitle('Not Found');
   return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="text-center space-y-8 max-w-lg">
-        <div className="relative">
-          <div className="text-[120px] font-black text-text-primary/5 leading-none">404</div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-24 h-24 rounded-full bg-surface-raised border border-border/50 flex items-center justify-center">
-              <AlertTriangle size={48} className="text-text-muted/40" />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <h1 className="text-4xl font-black tracking-tight text-text-primary">
-            Page Not Found
-          </h1>
-          <p className="text-lg text-text-secondary leading-relaxed">
-            The intelligence signal you're looking for doesn't exist or has been moved to a different location.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center gap-4 pt-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-surface-raised border border-border/50 text-text-secondary hover:text-text-primary hover:border-accent/40 transition-all font-bold text-sm"
-          >
-            <ArrowLeft size={16} />
-            Go Back
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-accent text-white hover:bg-accent/90 transition-all font-bold text-sm shadow-lg shadow-accent/20"
-          >
-            <Home size={16} />
-            Dashboard
-          </button>
-        </div>
-
-        <div className="pt-8 border-t border-border/10">
-          <p className="text-xs text-text-muted/40 font-bold uppercase tracking-widest mb-4">
-            Quick Links
-          </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            {[
-              { label: 'Signals', path: '/' },
-              { label: 'Shruti', path: '/chat' },
-              { label: 'Daily Brief', path: '/brief' },
-              { label: 'Watchlist', path: '/saved' },
-            ].map((link) => (
-              <button
-                key={link.path}
-                onClick={() => navigate(link.path)}
-                className="px-4 py-2 rounded-xl bg-surface/30 border border-border/10 hover:border-accent/20 text-xs font-bold text-text-secondary hover:text-text-primary transition-all"
-              >
-                {link.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col items-center justify-center h-full gap-4 p-12">
+      <p className="text-7xl font-bold text-zinc-800 tabular-nums">404</p>
+      <p className="text-base font-semibold text-zinc-400">Page not found</p>
+      <p className="text-sm text-zinc-600 text-center max-w-xs leading-relaxed">
+        The page you're looking for doesn't exist or was moved.
+      </p>
+      <Link
+        to="/"
+        className="mt-2 inline-flex items-center gap-2 h-8 px-4 rounded-md text-sm font-medium bg-zinc-800 text-zinc-200 hover:bg-zinc-700 ring-1 ring-zinc-700 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Trends
+      </Link>
     </div>
   );
-};
-
-export default NotFound;
+}

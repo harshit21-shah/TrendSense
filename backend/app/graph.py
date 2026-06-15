@@ -1,86 +1,47 @@
-from typing import TypedDict, List, Dict, Annotated
-import asyncio
 from langgraph.graph import StateGraph, END
-from .reddit_service import reddit_service
-from .hn_service import hn_service
-from .news_service import news_service
-from .rss_service import rss_service
-from .sentiment_agent import sentiment_agent_node
-from .synthesis_agent import synthesis_agent
-from .rag_agent import rag_agent
+
+from .agents.state import AgentState
+from .agents import (
+    supervisor_node,
+    fetch_coordinator_agent,
+    sentiment_agent,
+    domain_analyst_agent,
+    synthesis_coordinator_agent,
+    rag_validation_agent,
+    brief_agent_node,
+)
 from .logger import logger
 
-class AgentState(TypedDict):
-    domains: List[str]
-    raw_signals: List[Dict]
-    processed_signals: List[Dict]
-    scored_trends: List[Dict]
-    validated_trends: List[Dict]
-    errors: List[str]
-
-async def fetch_signals_node(state: AgentState) -> AgentState:
-    """Node to fetch raw signals from Reddit and HackerNews."""
-    logger.info(f"Fetching signals for domains: {state['domains']}")
-    
-    # Map domains to subreddits (simplified)
-    subreddit_map = {
-        "AI": ["MachineLearning", "artificial", "LocalLLaMA", "singularity"],
-        "Fintech": ["fintech", "CryptoCurrency", "investing"],
-        "Health": ["Futurology", "science"]
-    }
-    
-    selected_subs = []
-    for domain in state["domains"]:
-        selected_subs.extend(subreddit_map.get(domain, ["technology"]))
-
-    # Fetch all sources in parallel
-    reddit_tasks = [reddit_service.fetch_subreddit_rss(sub) for sub in selected_subs]
-    reddit_results, hn_stories, news_articles, rss_articles = await asyncio.gather(
-        asyncio.gather(*reddit_tasks),
-        hn_service.fetch_top_stories(),
-        news_service.fetch_all_categories(),
-        rss_service.fetch_all(),
-    )
-    reddit_posts = [item for sublist in reddit_results for item in sublist]
-
-    # Deduplicate all signals by URL
-    all_signals = reddit_posts + hn_stories + news_articles + rss_articles
-    unique_signals = []
-    seen_urls = set()
-    
-    for s in all_signals:
-        url = s.get("url")
-        if url and url not in seen_urls:
-            unique_signals.append(s)
-            seen_urls.add(url)
-        elif not url:
-            # If no URL, use title as fallback for deduplication
-            title = s.get("title")
-            if title and title not in seen_urls:
-                unique_signals.append(s)
-                seen_urls.add(title)
-
-    state["raw_signals"] = unique_signals
-    logger.info(f"Fetched {len(reddit_posts)} Reddit, {len(hn_stories)} HN, {len(news_articles)} NewsAPI, {len(rss_articles)} RSS signals. Unique: {len(unique_signals)}")
-    return state
 
 def create_trend_graph():
-    """Creates the LangGraph state machine for TrendSense."""
+    """
+    Multi-agent LangGraph pipeline:
+
+    Supervisor → Fetch Coordinator (Reddit | HN | News | RSS agents in parallel)
+      → Sentiment Agent → Domain Analyst Agents (parallel per domain)
+      → Synthesis Coordinator → RAG Validation Agent → Brief Agent → END
+    """
     workflow = StateGraph(AgentState)
 
-    # Add nodes
-    workflow.add_node("fetcher", fetch_signals_node)
-    workflow.add_node("sentiment", sentiment_agent_node)
-    workflow.add_node("synthesis", synthesis_agent.synthesize)
-    workflow.add_node("rag_validation", rag_agent.self_correct)
+    workflow.add_node("supervisor", supervisor_node)
+    workflow.add_node("fetch_coordinator", fetch_coordinator_agent)
+    workflow.add_node("sentiment", sentiment_agent)
+    workflow.add_node("domain_analyst", domain_analyst_agent)
+    workflow.add_node("synthesis", synthesis_coordinator_agent)
+    workflow.add_node("rag_validation", rag_validation_agent)
+    workflow.add_node("brief", brief_agent_node)
 
-    # Define edges
-    workflow.set_entry_point("fetcher")
-    workflow.add_edge("fetcher", "sentiment")
-    workflow.add_edge("sentiment", "synthesis")
+    workflow.set_entry_point("supervisor")
+    workflow.add_edge("supervisor", "fetch_coordinator")
+    workflow.add_edge("fetch_coordinator", "sentiment")
+    workflow.add_edge("sentiment", "domain_analyst")
+    workflow.add_edge("domain_analyst", "synthesis")
     workflow.add_edge("synthesis", "rag_validation")
-    workflow.add_edge("rag_validation", END)
+    workflow.add_edge("rag_validation", "brief")
+    workflow.add_edge("brief", END)
 
+    logger.info("Multi-agent trend graph compiled: 7 agents, 8 nodes")
     return workflow.compile()
+
 
 trend_graph = create_trend_graph()

@@ -9,7 +9,7 @@ class ChromaService:
         # Use ChromaDB's built-in lightweight embedding function
         self.ef = embedding_functions.DefaultEmbeddingFunction()
 
-        if settings.CHROMA_HOST and settings.CHROMA_HOST != "chromadb":
+        if settings.CHROMA_HOST:
             self.client = chromadb.HttpClient(
                 host=settings.CHROMA_HOST,
                 port=int(settings.CHROMA_PORT),

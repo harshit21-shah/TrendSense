@@ -10,32 +10,11 @@ RSS Feed Service — aggregates signals from multiple free, no-key-required sour
 
 import httpx
 import xml.etree.ElementTree as ET
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime, timezone, timedelta
 from .logger import logger
 from .text_utils import normalize_trend_title
-
-# Feed definitions: (name, url, domain_hint)
-RSS_FEEDS = [
-    # Tech news
-    ("TechCrunch",        "https://techcrunch.com/feed/",                          "AI"),
-    ("TechCrunch AI",     "https://techcrunch.com/category/artificial-intelligence/feed/", "AI"),
-    ("The Verge",         "https://www.theverge.com/rss/index.xml",                "AI"),
-    ("Ars Technica",      "https://feeds.arstechnica.com/arstechnica/technology-lab", "AI"),
-    ("Wired",             "https://www.wired.com/feed/rss",                        "AI"),
-    # Science / Research
-    ("MIT Tech Review",   "https://www.technologyreview.com/feed/",                "AI"),
-    ("Nature News",       "https://www.nature.com/nature.rss",                     "Health"),
-    # Business / Fintech
-    ("VentureBeat",       "https://venturebeat.com/feed/",                         "Fintech"),
-    ("TechCrunch Fintech","https://techcrunch.com/category/fintech/feed/",         "Fintech"),
-    # Health / Biotech
-    ("TechCrunch Health", "https://techcrunch.com/category/biotech-health/feed/",  "Health"),
-    # Climate
-    ("TechCrunch Climate","https://techcrunch.com/category/climate/feed/",         "Climate"),
-    # Product Hunt (trending products — good signal for emerging trends)
-    ("Product Hunt",      "https://www.producthunt.com/feed",                      "AI"),
-]
+from .domains import RSS_FEEDS
 
 # How old an article can be (hours) before we skip it
 MAX_AGE_HOURS = 48
@@ -120,16 +99,23 @@ class RSSFeedService:
 
         return articles
 
-    async def fetch_all(self) -> List[Dict]:
+    async def fetch_all(self, domains: Optional[List[str]] = None) -> List[Dict]:
         import asyncio
-        tasks = [self.fetch_feed(name, url, hint) for name, url, hint in RSS_FEEDS]
+        feeds = RSS_FEEDS
+        if domains:
+            domain_set = {d.lower() for d in domains}
+            feeds = [f for f in RSS_FEEDS if f[2].lower() in domain_set]
+            if not feeds:
+                feeds = RSS_FEEDS
+
+        tasks = [self.fetch_feed(name, url, hint) for name, url, hint in feeds]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_articles: List[Dict] = []
         seen_urls: set = set()
 
         for i, result in enumerate(results):
-            name = RSS_FEEDS[i][0]
+            name = feeds[i][0]
             if isinstance(result, Exception):
                 logger.error(f"RSS gather error for {name}: {result}")
                 continue
@@ -139,7 +125,7 @@ class RSSFeedService:
                     all_articles.append(article)
                     seen_urls.add(url)
 
-        logger.info(f"RSS feeds: fetched {len(all_articles)} unique articles from {len(RSS_FEEDS)} sources")
+        logger.info(f"RSS feeds: fetched {len(all_articles)} unique articles from {len(feeds)} sources")
         return all_articles
 
 

@@ -274,7 +274,7 @@ class TrendDeduplicator:
         
         if removed_count > 0:
             logger.info(
-                f"Deduplication: {original_count} trends → {final_count} unique "
+                f"Deduplication: {original_count} trends -> {final_count} unique "
                 f"({removed_count} duplicates removed, {removed_count/original_count*100:.1f}% reduction)"
             )
             
