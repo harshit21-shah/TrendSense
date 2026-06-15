@@ -1,21 +1,32 @@
-fastapi
-uvicorn[standard]
-pydantic-settings
-structlog
-sqlalchemy
-asyncpg
-alembic
-langgraph
-langchain
-langchain-groq
-langchain-openai
-chromadb
-apscheduler
-praw
-httpx
-python-dotenv
-aiosqlite
-textblob
-vaderSentiment
-scikit-learn
-nltk
+# Core
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+structlog==24.4.0
+
+# Database
+sqlalchemy==2.0.36
+aiosqlite==0.20.0
+asyncpg==0.30.0
+
+# LangChain / LangGraph agents
+langgraph==0.2.56
+langchain==0.3.14
+langchain-core==0.3.28
+langchain-groq==0.2.3
+
+# Vector store
+chromadb==0.5.23
+
+# Scheduler
+apscheduler==3.10.4
+
+# HTTP client
+httpx==0.27.2
+
+# NLP / sentiment
+textblob==0.18.0
+vaderSentiment==3.3.2
+scikit-learn==1.5.2
+nltk==3.9.1
