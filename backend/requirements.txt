@@ -1,5 +1,5 @@
 # Core web framework
-fastapi>=0.110.0,<1.0.0
+fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 pydantic-settings>=2.2.0
 python-dotenv>=1.0.0
@@ -9,9 +9,9 @@ structlog>=24.0.0
 sqlalchemy>=2.0.0
 aiosqlite>=0.20.0
 
-# LangChain / LangGraph multi-agent pipeline
+# LangGraph + only the langchain packages actually imported in code
+# (langchain umbrella package removed — caused ResolutionImpossible conflicts)
 langgraph>=0.2.0
-langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-groq>=0.1.0
 
@@ -21,7 +21,7 @@ chromadb>=0.4.0
 # Scheduler
 apscheduler>=3.10.0
 
-# HTTP client (used for all external APIs)
+# HTTP client
 httpx>=0.27.0
 
 # NLP / sentiment analysis
