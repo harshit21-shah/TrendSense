@@ -28,7 +28,7 @@ NEWS_CATEGORY_MAP: Dict[str, str] = {
 
 # (name, url, domain_hint)
 RSS_FEEDS: List[Tuple[str, str, str]] = [
-    # AI & Tech
+    # ── AI & Tech ────────────────────────────────────────────────────────────
     ("TechCrunch", "https://techcrunch.com/feed/", "AI"),
     ("TechCrunch AI", "https://techcrunch.com/category/artificial-intelligence/feed/", "AI"),
     ("The Verge", "https://www.theverge.com/rss/index.xml", "AI"),
@@ -39,22 +39,55 @@ RSS_FEEDS: List[Tuple[str, str, str]] = [
     ("Product Hunt", "https://www.producthunt.com/feed", "AI"),
     ("Hacker News RSS", "https://hnrss.org/frontpage", "AI"),
     ("Dev.to", "https://dev.to/feed", "AI"),
-    # Fintech
+    # New AI sources
+    ("Google AI Blog", "https://blog.research.google/feeds/posts/default", "AI"),
+    ("HuggingFace Blog", "https://huggingface.co/blog/feed.xml", "AI"),
+    ("The Gradient", "https://thegradient.pub/rss/", "AI"),
+    ("Towards Data Science", "https://towardsdatascience.com/feed", "AI"),
+    ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml", "AI"),
+    ("AI Alignment Forum", "https://www.alignmentforum.org/feed.xml", "AI"),
+    ("Interconnects AI", "https://www.interconnects.ai/feed", "AI"),
+    # ── Fintech ──────────────────────────────────────────────────────────────
     ("VentureBeat", "https://venturebeat.com/feed/", "Fintech"),
     ("TechCrunch Fintech", "https://techcrunch.com/category/fintech/feed/", "Fintech"),
-    ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/", "Crypto"),
-    ("The Block", "https://www.theblock.co/rss.xml", "Crypto"),
-    # Health & Biotech
+    # New Fintech sources
+    ("a16z", "https://a16z.com/feed/", "Fintech"),
+    ("PYMNTS", "https://www.pymnts.com/feed/", "Fintech"),
+    ("Banking Dive", "https://www.bankingdive.com/feeds/news/", "Fintech"),
+    ("Fintech Nexus", "https://www.fintechnexus.com/feed/", "Fintech"),
+    # ── Health ───────────────────────────────────────────────────────────────
     ("Nature News", "https://www.nature.com/nature.rss", "Health"),
+    # New Health sources
+    ("NIH News", "https://www.nih.gov/news-events/feed.xml", "Health"),
+    ("Medical Xpress", "https://medicalxpress.com/rss-feed/", "Health"),
+    ("Health Affairs", "https://www.healthaffairs.org/rss/site_5/41.xml", "Health"),
+    # ── Biotech ──────────────────────────────────────────────────────────────
     ("TechCrunch Health", "https://techcrunch.com/category/biotech-health/feed/", "Biotech"),
     ("STAT News", "https://www.statnews.com/feed/", "Biotech"),
-    # Climate
+    # New Biotech sources
+    ("Fierce Biotech", "https://www.fiercebiotech.com/rss/xml", "Biotech"),
+    ("Endpoints News", "https://endpts.com/feed/", "Biotech"),
+    ("BioSpace", "https://www.biospace.com/articles/feed/", "Biotech"),
+    ("GenomeWeb", "https://www.genomeweb.com/rss/all", "Biotech"),
+    # ── Climate ──────────────────────────────────────────────────────────────
     ("TechCrunch Climate", "https://techcrunch.com/category/climate/feed/", "Climate"),
     ("CleanTechnica", "https://cleantechnica.com/feed/", "Climate"),
     ("Carbon Brief", "https://www.carbonbrief.org/feed", "Climate"),
-    # Crypto / Web3
+    # New Climate sources
+    ("Electrek", "https://electrek.co/feed/", "Climate"),
+    ("Inside Climate News", "https://insideclimatenews.org/feed/", "Climate"),
+    ("E&E News", "https://www.eenews.net/rss/news", "Climate"),
+    ("Canary Media", "https://www.canarymedia.com/rss", "Climate"),
+    # ── Crypto / Web3 ────────────────────────────────────────────────────────
+    ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/", "Crypto"),
+    ("The Block", "https://www.theblock.co/rss.xml", "Crypto"),
     ("Decrypt", "https://decrypt.co/feed", "Crypto"),
     ("Cointelegraph", "https://cointelegraph.com/rss", "Crypto"),
+    # New Crypto sources
+    ("Bitcoin Magazine", "https://bitcoinmagazine.com/.rss/full/", "Crypto"),
+    ("Blockworks", "https://blockworks.co/feed", "Crypto"),
+    ("The Defiant", "https://thedefiant.io/feed", "Crypto"),
+    ("Messari", "https://messari.io/rss", "Crypto"),
 ]
 
 # Keyword → domain for untagged signals (HN, NewsAPI)
