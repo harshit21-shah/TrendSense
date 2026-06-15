@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps: build-essential for hnswlib (chromadb), curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps — separate layer so rebuilds skip this if unchanged
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Pre-download NLP corpora (failures are non-fatal)
+RUN python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab'); nltk.download('averaged_perceptron_tagger')" 2>/dev/null || true
+RUN python -c "import textblob; textblob.download_corpora()" 2>/dev/null || true
+
+# Copy app code
+COPY . .
+
+# Smoke-test that the app imports cleanly before declaring the image ready
+RUN python -c "from app.config import settings; print('Config OK')"
+
+EXPOSE 8000
+
+# Single worker — required for SQLite (no concurrent writes across processes)
+# Render injects $PORT at runtime
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info

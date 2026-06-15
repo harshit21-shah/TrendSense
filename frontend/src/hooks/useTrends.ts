@@ -1,43 +1,45 @@
-import { useQuery } from '@tanstack/react-query'
-import { fetchTrends, fetchDomains, fetchBrief, fetchTimeline, fetchTrendById } from '../lib/api'
+import { useQuery } from '@tanstack/react-query';
+import { getTrends, getTrend, getDomains, getStages, searchTrends } from '../api';
+import type { TrendFilters } from '../types';
 
-export const useTrends = (params: Record<string, string> = {}) =>
-  useQuery({
-    queryKey: ['trends', params],
-    queryFn: () => fetchTrends(params),
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  })
+export function useTrends(filters?: TrendFilters) {
+  return useQuery({
+    queryKey: ['trends', filters],
+    queryFn: () => getTrends(filters),
+    staleTime: 30_000,
+  });
+}
 
-export const useDomains = () =>
-  useQuery({
-    queryKey: ['domains'],
-    queryFn: fetchDomains,
-    staleTime: 10 * 60 * 1000,
-    retry: 1,
-  })
-
-export const useBrief = () =>
-  useQuery({
-    queryKey: ['brief'],
-    queryFn: fetchBrief,
-    staleTime: 30 * 60 * 1000,
-    retry: 1,
-  })
-
-export const useTimeline = (topic: string) =>
-  useQuery({
-    queryKey: ['timeline', topic],
-    queryFn: () => fetchTimeline(topic),
-    enabled: !!topic,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  })
-
-export const useTrendDetail = (id: string) =>
-  useQuery({
+export function useTrend(id: number | null) {
+  return useQuery({
     queryKey: ['trend', id],
-    queryFn: () => fetchTrendById(id),
-    enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-  })
+    queryFn: () => getTrend(id!),
+    enabled: id != null,
+    staleTime: 60_000,
+  });
+}
+
+export function useDomains() {
+  return useQuery({
+    queryKey: ['domains'],
+    queryFn: getDomains,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useStages() {
+  return useQuery({
+    queryKey: ['stages'],
+    queryFn: getStages,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSearchTrends(query: string) {
+  return useQuery({
+    queryKey: ['search', query],
+    queryFn: () => searchTrends(query),
+    enabled: query.trim().length > 1,
+    staleTime: 10_000,
+  });
+}

@@ -1,25 +1,31 @@
-fastapi
-uvicorn[standard]
-pydantic-settings
-structlog
-sqlalchemy
-asyncpg
-alembic
-langgraph
-langchain
-langchain-groq
-langchain-openai
-chromadb
-sentence-transformers
-apscheduler
-praw
-httpx
-python-dotenv
-aiosqlite
-textblob
-vaderSentiment
-scikit-learn
-nltk
-# CPU-only torch — avoids pulling the 2GB CUDA build
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
+# Core web framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+structlog>=24.0.0
+
+# Database
+sqlalchemy>=2.0.0
+aiosqlite>=0.20.0
+
+# LangGraph + only the langchain packages actually imported in code
+# (langchain umbrella package removed — caused ResolutionImpossible conflicts)
+langgraph>=0.2.0
+langchain-core>=0.2.0
+langchain-groq>=0.1.0
+
+# Vector store
+chromadb>=0.4.0
+
+# Scheduler
+apscheduler>=3.10.0
+
+# HTTP client
+httpx>=0.27.0
+
+# NLP / sentiment analysis
+textblob>=0.18.0
+vaderSentiment>=3.3.2
+scikit-learn>=1.4.0
+nltk>=3.8.0

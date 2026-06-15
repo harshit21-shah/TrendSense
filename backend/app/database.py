@@ -21,7 +21,7 @@ if "postgresql" in DATABASE_URL and (
     except OSError:
         DATABASE_URL = "sqlite+aiosqlite:///trendsense.db"
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):

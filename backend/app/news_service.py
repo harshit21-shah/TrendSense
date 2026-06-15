@@ -2,17 +2,21 @@ import httpx
 from typing import List, Dict
 from datetime import datetime, timezone, timedelta
 from .config import settings
+from .domains import NEWS_CATEGORY_MAP, infer_domain_hint
 from .logger import logger
+from .text_utils import normalize_trend_title
+
+TIMEOUT = 20.0
 
 
 class NewsAPIService:
     BASE_URL = "https://newsapi.org/v2/top-headlines"
-    CATEGORIES = ["technology", "science", "business", "health"]
 
-    async def fetch_top_headlines(self, category: str = "technology", page_size: int = 50) -> List[Dict]:
-        """Fetches top headlines from NewsAPI, filtered to last 24h."""
+    def _categories_for_domains(self, domains: List[str]) -> List[str]:
+        return list(dict.fromkeys(NEWS_CATEGORY_MAP.get(d, "technology") for d in domains))
+
+    async def fetch_category(self, category: str, page_size: int = 40) -> List[Dict]:
         if not settings.NEWS_API_KEY:
-            logger.warning("NEWS_API_KEY not set, skipping NewsAPI fetch.")
             return []
 
         params = {
@@ -21,49 +25,52 @@ class NewsAPIService:
             "language": "en",
             "apiKey": settings.NEWS_API_KEY,
         }
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        articles: List[Dict] = []
 
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-        articles = []
-
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
             try:
                 response = await client.get(self.BASE_URL, params=params)
                 response.raise_for_status()
-                data = response.json()
-
-                for article in data.get("articles", []):
-                    published_at = article.get("publishedAt", "")
+                for article in response.json().get("articles", []):
+                    published = article.get("publishedAt", "")
                     try:
-                        pub_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+                        pub_dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
                         if pub_dt < cutoff:
                             continue
                     except (ValueError, AttributeError):
-                        pass  # include if we can't parse the date
-
+                        pass
+                    title = article.get("title", "") or ""
+                    desc = article.get("description", "") or ""
                     articles.append({
                         "source": "newsapi",
                         "source_id": f"news_{abs(hash(article.get('url', '')))}",
-                        "title": article.get("title", ""),
-                        "content": article.get("description", "") or article.get("content", ""),
-                        "score": 100,  # NewsAPI doesn't have engagement scores
+                        "title": normalize_trend_title(title),
+                        "content": desc[:600],
+                        "score": 90,
                         "url": article.get("url", ""),
-                        "subreddit": category,  # reuse field for category
-                        "created_at": published_at,
+                        "subreddit": category,
+                        "domain_hint": infer_domain_hint(title, desc),
+                        "created_at": published,
                     })
-
             except Exception as e:
-                logger.error(f"NewsAPI error for category '{category}': {str(e)}")
-
+                logger.error(f"NewsAPI error ({category}): {e}")
         return articles
 
-    async def fetch_all_categories(self) -> List[Dict]:
-        """Fetches headlines across all configured categories."""
+    async def fetch_all_categories(self, domains: List[str] | None = None) -> List[Dict]:
+        if not settings.NEWS_API_KEY:
+            logger.warning("NEWS_API_KEY not set — skipping NewsAPI")
+            return []
+        active = domains or []
+        categories = self._categories_for_domains(active) if active else ["technology", "science", "business", "health"]
         all_articles: List[Dict] = []
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            for category in self.CATEGORIES:
-                articles = await self.fetch_top_headlines(category)
-                all_articles.extend(articles)
-                logger.info(f"NewsAPI: fetched {len(articles)} articles for '{category}'")
+        seen: set = set()
+        for cat in categories:
+            for article in await self.fetch_category(cat):
+                url = article.get("url", "")
+                if url and url not in seen:
+                    all_articles.append(article)
+                    seen.add(url)
         return all_articles
 
 

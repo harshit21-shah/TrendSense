@@ -1,41 +1,68 @@
-import { clsx } from 'clsx'
+import { cn } from '../../lib/cn';
 
-const STAGE: Record<string, { bg: string; text: string; dot: string }> = {
-  emerging: { bg: 'rgba(59,130,246,0.1)', text: '#60a5fa', dot: '#3b82f6' },
-  rising:   { bg: 'rgba(249,115,22,0.1)', text: '#fb923c', dot: '#f97316' },
-  mainstream: { bg: 'rgba(168,85,247,0.1)', text: '#c084fc', dot: '#a855f7' },
+// Domain color dots — intentional semantic palette
+const DOMAIN_COLORS: Record<string, string> = {
+  ai: 'bg-violet-500',
+  fintech: 'bg-blue-500',
+  health: 'bg-emerald-500',
+  biotech: 'bg-teal-500',
+  climate: 'bg-green-500',
+  crypto: 'bg-amber-500',
+  other: 'bg-zinc-500',
+};
+
+const DOMAIN_TEXT: Record<string, string> = {
+  ai: 'text-violet-400',
+  fintech: 'text-blue-400',
+  health: 'text-emerald-400',
+  biotech: 'text-teal-400',
+  climate: 'text-green-400',
+  crypto: 'text-amber-400',
+  other: 'text-zinc-400',
+};
+
+function normalizeDomain(domain: string): string {
+  return domain.split('|')[0].trim().toLowerCase();
 }
 
-const DOMAIN: Record<string, { bg: string; text: string }> = {
-  AI:      { bg: 'rgba(99,102,241,0.12)', text: '#818cf8' },
-  Fintech: { bg: 'rgba(16,185,129,0.12)', text: '#34d399' },
-  Health:  { bg: 'rgba(244,63,94,0.12)',  text: '#fb7185' },
-  Crypto:  { bg: 'rgba(234,179,8,0.12)',  text: '#facc15' },
-  Climate: { bg: 'rgba(34,197,94,0.12)',  text: '#4ade80' },
-  Other:   { bg: 'rgba(100,116,139,0.12)', text: '#94a3b8' },
+export function getDomainStyle(domain: string, active: boolean): string {
+  const key = normalizeDomain(domain);
+  const text = DOMAIN_TEXT[key] ?? 'text-zinc-400';
+  const dotBg = DOMAIN_COLORS[key] ?? 'bg-zinc-500';
+  if (active) {
+    return `${text} ring-1 ring-current/30 bg-current/10`;
+  }
+  return `text-zinc-500 ring-zinc-800 hover:text-zinc-300 hover:bg-zinc-800/60 ${dotBg}`;
 }
 
-export const StageBadge = ({ stage }: { stage: string }) => {
-  const s = STAGE[stage?.toLowerCase()] ?? STAGE.emerging
+export function DomainBadge({ domain }: { domain: string }) {
+  const key = normalizeDomain(domain);
+  const dot = DOMAIN_COLORS[key] ?? 'bg-zinc-500';
+  const text = DOMAIN_TEXT[key] ?? 'text-zinc-400';
+  // Show only the primary domain (before |)
+  const label = domain.split('|')[0].trim();
+
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-      style={{ background: s.bg, color: s.text, border: `1px solid ${s.dot}30` }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+    <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-medium shrink-0', text)}>
+      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
+      {label}
+    </span>
+  );
+}
+
+const STAGE_STYLES: Record<string, string> = {
+  emerging: 'text-zinc-500',
+  rising: 'text-sky-500',
+  mainstream: 'text-violet-500',
+  fading: 'text-zinc-600',
+};
+
+export function StageBadge({ stage }: { stage: string }) {
+  const key = (stage ?? '').toLowerCase();
+  const color = STAGE_STYLES[key] ?? 'text-zinc-500';
+  return (
+    <span className={cn('text-[11px] font-medium shrink-0', color)}>
       {stage}
     </span>
-  )
+  );
 }
-
-export const DomainBadge = ({ domain }: { domain: string }) => {
-  const d = DOMAIN[domain] ?? DOMAIN.Other
-  return (
-    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-      style={{ background: d.bg, color: d.text }}>
-      {domain}
-    </span>
-  )
-}
-
-export const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', className)}>{children}</span>
-)

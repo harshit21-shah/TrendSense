@@ -1,165 +1,274 @@
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Trash2, Bot, User, Loader2, Sparkles } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import { useStore } from '../store/useStore'
-import { useSSE } from '../hooks/useSSE'
-import type { ChatMessage } from '../types'
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { KeyboardEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Send, RotateCcw, User, Sparkles, StopCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { getChatSuggestions, queryTrends } from '../api';
+import { useChatStore } from '../store/useChatStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { cn } from '../lib/cn';
 
-const SUGGESTIONS = [
-  { icon: '🤖', text: "What's emerging in AI infrastructure this week?" },
-  { icon: '💰', text: 'Which fintech trends should founders watch?' },
-  { icon: '🏥', text: 'What health tech signals are rising right now?' },
-  { icon: '📊', text: 'Compare AI and crypto trend velocity' },
-]
+export default function Chat() {
+  useDocumentTitle('Ava');
+  const { messages, isStreaming, addMessage, appendToLastMessage, setStreaming, clearMessages } =
+    useChatStore();
 
-function Message({ msg }: { msg: ChatMessage }) {
-  const isUser = msg.role === 'user'
+  const { data: suggestions = [] } = useQuery({
+    queryKey: ['chat-suggestions'],
+    queryFn: getChatSuggestions,
+    staleTime: 5 * 60_000,
+  });
+
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const isAtBottomRef = useRef(true);
+
+  // Abort any in-flight stream and reset isStreaming when navigating away
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      // Reset streaming state so input isn't stuck disabled on return
+      setStreaming(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Only auto-scroll when user is already at the bottom
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleContainerScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  };
+
+  const handleSend = useCallback(
+    async (question: string) => {
+      const q = question.trim();
+      if (!q || isStreaming) return;
+
+      // Abort any in-flight request
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
+      setInput('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      isAtBottomRef.current = true;
+
+      addMessage({ role: 'user', content: q });
+      addMessage({ role: 'assistant', content: '' });
+      setStreaming(true);
+
+      await queryTrends(
+        q,
+        (chunk) => appendToLastMessage(chunk),
+        (err) => appendToLastMessage(`\n\n*Error: ${err}*`),
+        abortRef.current.signal,
+      );
+      setStreaming(false);
+    },
+    [isStreaming, addMessage, appendToLastMessage, setStreaming],
+  );
+
+  const handleClearMessages = () => {
+    // Abort stream before clearing — prevents ghost messages
+    abortRef.current?.abort();
+    abortRef.current = null;
+    clearMessages();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(input);
+    }
+  };
+
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
-      className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5`}
-        style={isUser
-          ? { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }
-          : { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-        {isUser ? <User size={12} className="text-white" /> : <Bot size={12} style={{ color: '#818cf8' }} />}
-      </div>
-      <div className={`max-w-[82%] flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className="rounded-2xl px-4 py-3 text-[13px] leading-relaxed"
-          style={isUser
-            ? { background: 'linear-gradient(135deg, #6366f1, #7c3aed)', color: 'white', borderRadius: '16px 4px 16px 16px' }
-            : { background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)', color: '#cbd5e1', borderRadius: '4px 16px 16px 16px' }}>
-          {isUser ? msg.content : (
-            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-p:text-slate-300 prose-strong:text-white prose-a:text-indigo-400 prose-code:text-indigo-300 prose-code:bg-white/[0.08] prose-code:px-1 prose-code:rounded prose-ul:my-1 prose-li:text-slate-300">
-              <ReactMarkdown>{msg.content || '▋'}</ReactMarkdown>
-            </div>
-          )}
-        </div>
-        {msg.grounded_in !== undefined && msg.grounded_in > 0 && (
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: '#475569' }}>
-            <Sparkles size={9} style={{ color: '#6366f1' }} />
-            Grounded in {msg.grounded_in} trend{msg.grounded_in !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-export function Chat() {
-  const { chatMessages, sessionId, addMessage, updateLastMessage, clearChat } = useStore()
-  const [input, setInput] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const { streamQuery } = useSSE()
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages])
-
-  const send = (question: string) => {
-    if (!question.trim() || streaming) return
-    setInput('')
-    setStreaming(true)
-
-    addMessage({ id: crypto.randomUUID(), role: 'user', content: question, timestamp: new Date() })
-    addMessage({ id: crypto.randomUUID(), role: 'assistant', content: '', timestamp: new Date() })
-
-    let acc = ''
-    streamQuery(question, sessionId,
-      chunk => { acc += chunk; updateLastMessage(acc) },
-      () => { setStreaming(false); setTimeout(() => inputRef.current?.focus(), 100) }
-    )
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col" style={{ height: 'calc(100vh - 56px)' }}>
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Trend Intelligence Chat</h1>
-          <p className="text-slate-600 text-xs mt-0.5">RAG-grounded answers from live trend data</p>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/50 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-violet-600/20 ring-1 ring-violet-500/30 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-violet-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">Ava</h2>
+            <p className="text-xs text-zinc-500">AI Trend Analyst · grounded in live signal data</p>
+          </div>
         </div>
-        {chatMessages.length > 0 && (
-          <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-slate-700 hover:text-red-400 transition-colors">
-            <Trash2 size={12} /> Clear chat
+        {messages.length > 0 && (
+          <button
+            onClick={handleClearMessages}
+            className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            New conversation
           </button>
         )}
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
-        {chatMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-8 text-center">
+      {/* Messages */}
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleContainerScroll}
+        className="flex-1 overflow-y-auto px-6 py-6"
+      >
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-6 max-w-lg mx-auto text-center">
+            <div className="w-16 h-16 rounded-2xl bg-violet-600/15 ring-1 ring-violet-500/25 flex items-center justify-center">
+              <Sparkles className="h-7 w-7 text-violet-400" />
+            </div>
             <div>
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <Bot size={28} style={{ color: '#818cf8' }} />
-              </div>
-              <p className="text-slate-300 font-semibold text-lg mb-1">Ask about any trend</p>
-              <p className="text-slate-600 text-sm max-w-sm">
-                Answers are grounded in real-time signals from Reddit, HackerNews, and NewsAPI
+              <h3 className="text-base font-semibold text-zinc-200 mb-2">Ask Ava</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                I analyze emerging technology trends from live pipeline data. Ask about investment
+                theses, product opportunities, competitive dynamics, or what's breaking out in any
+                domain.
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
-              {SUGGESTIONS.map(s => (
-                <button key={s.text} onClick={() => send(s.text)}
-                  className="text-left px-4 py-3 rounded-xl text-xs text-slate-400 hover:text-slate-200 transition-all group"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
-                >
-                  <span className="mr-2">{s.icon}</span>{s.text}
-                </button>
-              ))}
-            </div>
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSend(s)}
+                    className="px-3 py-2 text-sm text-zinc-300 bg-zinc-800/80 hover:bg-zinc-700 rounded-lg ring-1 ring-zinc-700/60 transition-colors text-left"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <AnimatePresence initial={false}>
-            {chatMessages.map(msg => <Message key={msg.id} msg={msg} />)}
-          </AnimatePresence>
-        )}
+          <div className="space-y-6 max-w-3xl mx-auto">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}
+              >
+                {/* Avatar */}
+                <div
+                  className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                    msg.role === 'user'
+                      ? 'bg-zinc-700 ring-1 ring-zinc-600'
+                      : 'bg-violet-600/20 ring-1 ring-violet-500/35',
+                  )}
+                >
+                  {msg.role === 'user' ? (
+                    <User className="h-3.5 w-3.5 text-zinc-300" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                  )}
+                </div>
 
-        {/* Typing indicator */}
-        {streaming && chatMessages.at(-1)?.content === '' && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Loader2 size={12} style={{ color: '#818cf8' }} className="animate-spin" />
-            </div>
-            <div className="px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1"
-              style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {[0, 1, 2].map(i => (
-                <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#6366f1' }}
-                  animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1, 0.8] }}
-                  transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />
-              ))}
-            </div>
+                {/* Bubble */}
+                <div
+                  className={cn(
+                    'max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed',
+                    msg.role === 'user'
+                      ? 'bg-violet-600/20 text-zinc-100 ring-1 ring-violet-500/20'
+                      : 'bg-zinc-800/60 ring-1 ring-zinc-700/40',
+                  )}
+                >
+                  {msg.role === 'assistant' ? (
+                    msg.content ? (
+                      <div className="ts-prose text-sm">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 py-1" aria-label="Thinking…">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '0ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '150ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"
+                          style={{ animationDelay: '300ms' }}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-zinc-100">{msg.content}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <div className="shrink-0">
-        <form onSubmit={e => { e.preventDefault(); send(input) }}
-          className="flex gap-2 p-2 rounded-2xl transition-all"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-            placeholder="Ask about trends, signals, investment opportunities..."
-            disabled={streaming}
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-300 placeholder-slate-700 focus:outline-none disabled:opacity-50"
+      <div className="px-6 pb-5 pt-3 border-t border-zinc-800/40 shrink-0">
+        <div className="flex items-end gap-2.5 bg-zinc-900/80 ring-1 ring-zinc-800 rounded-xl px-3.5 py-2.5 focus-within:ring-violet-500/30 transition-all max-w-3xl mx-auto">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoResize(e.target);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about trends, investment theses, or market signals…"
+            rows={1}
+            disabled={isStreaming}
+            aria-label="Chat input"
+            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none resize-none leading-relaxed disabled:opacity-40 py-0.5"
+            style={{ maxHeight: '8rem' }}
           />
-          <button type="submit" disabled={!input.trim() || streaming}
-            className="p-2.5 rounded-xl text-white transition-all disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
-        </form>
-        <p className="text-center text-[10px] text-slate-800 mt-2">
-          Powered by Groq Llama 3.1 70B · RAG over ChromaDB · Session-scoped memory
+          {isStreaming ? (
+            <button
+              onClick={() => { abortRef.current?.abort(); setStreaming(false); }}
+              className="shrink-0 w-7 h-7 rounded-md bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+              aria-label="Stop generation"
+            >
+              <StopCircle className="h-3.5 w-3.5 text-zinc-400" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleSend(input)}
+              disabled={!input.trim()}
+              className="shrink-0 w-7 h-7 rounded-md bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+              aria-label="Send message"
+            >
+              <Send className="h-3 w-3 text-white" />
+            </button>
+          )}
+        </div>
+        <p className="text-[10px] text-zinc-700 mt-1.5 text-center max-w-3xl mx-auto">
+          <kbd className="font-mono">Shift+Enter</kbd> for new line
+          {isStreaming && <span className="ml-3 text-violet-600 animate-pulse">Generating…</span>}
         </p>
       </div>
     </div>
-  )
+  );
 }

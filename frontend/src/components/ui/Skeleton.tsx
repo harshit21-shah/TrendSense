@@ -1,21 +1,33 @@
-export const Skeleton = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'rgba(255,255,255,0.04)' }} />
-)
+import { cn } from '../../lib/cn';
 
-export const TrendCardSkeleton = () => (
-  <div className="rounded-2xl p-5 space-y-4" style={{ background: '#0c0f1a', border: '1px solid rgba(255,255,255,0.06)' }}>
-    <div className="flex justify-between items-start">
-      <div className="flex gap-2">
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-5 w-14" />
+interface SkeletonProps {
+  className?: string;
+}
+
+export function Skeleton({ className }: SkeletonProps) {
+  return <div className={cn('animate-pulse rounded-md bg-zinc-800/60', className)} />;
+}
+
+export function TrendRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 px-4 h-11 border-b border-zinc-800/30">
+      {/* TVS badge */}
+      <Skeleton className="w-8 h-5 rounded-md shrink-0" />
+      {/* Title */}
+      <Skeleton className="h-3.5 flex-1 max-w-xs" />
+      {/* Domain + Stage */}
+      <div className="hidden sm:flex items-center gap-3 shrink-0">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-14" />
       </div>
-      <Skeleton className="h-5 w-10" />
+      {/* Delta */}
+      <Skeleton className="h-3 w-12 shrink-0" />
+      {/* Sparkline */}
+      <Skeleton className="hidden md:block w-16 h-5 rounded shrink-0" />
+      {/* Age */}
+      <Skeleton className="h-3 w-8 shrink-0" />
+      {/* Bookmark */}
+      <Skeleton className="w-4 h-4 rounded shrink-0" />
     </div>
-    <Skeleton className="h-5 w-3/4" />
-    <Skeleton className="h-4 w-full" />
-    <Skeleton className="h-12 w-full" />
-    <Skeleton className="h-2 w-full" />
-    <Skeleton className="h-4 w-5/6" />
-    <Skeleton className="h-4 w-2/3" />
-  </div>
-)
+  );
+}
